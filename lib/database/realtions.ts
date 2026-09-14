@@ -5,6 +5,7 @@ export const relations = defineRelations(schema, (r) => ({
   user: {
     sessions: r.many.session(),
     accounts: r.many.account(),
+    apps: r.many.apps(),
   },
 
   session: {
@@ -23,5 +24,20 @@ export const relations = defineRelations(schema, (r) => ({
     }),
   },
 
+  hosts: {
+    apps: r.many.apps(),
+  },
 
+  apps: {
+    owner: r.one.user({
+      from: r.apps.ownerId,
+      to: r.user.id,
+      optional: false,
+    }),
+    host: r.one.hosts({
+      from: r.apps.hostId,
+      to: r.hosts.id,
+      optional: false,
+    }),
+  },
 }));
