@@ -30,7 +30,6 @@ export const apps = pgTable(
       .references(() => user.id, { onDelete: "cascade" }),
 
     hostId: uuid("host_id")
-      .notNull()
       .references(() => hosts.id, { onDelete: "restrict" }),
 
     name: text("name").notNull(),
@@ -68,4 +67,12 @@ export const apps = pgTable(
   })
 );
 
-export const appsInsertSchema = createInsertSchema(apps);
+export const appsInsertSchema = createInsertSchema(apps).omit({
+  ownerId:true,
+  hostId:true,
+  slug:true,
+  githubInstallationId:true,
+  githubBranch:true,
+  githubRepoFullName:true,
+  githubRepoId:true,
+});

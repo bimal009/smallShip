@@ -1,0 +1,1 @@
+ALTER TABLE "apps" ALTER COLUMN "host_id" DROP NOT NULL;

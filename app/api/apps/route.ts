@@ -1,10 +1,15 @@
-import { db } from "@/lib/database/db"
+import { auth } from "@/auth"
+import { db } from "@/lib/database"
 import { apps, appsInsertSchema } from "@/lib/database/schema"
-import { auth } from "@/lib/auth" // adjust to whatever you're using for sessions
+import { headers } from "next/headers"
 import { NextRequest, NextResponse } from "next/server"
+import { slugify } from "@/lib/slugify"
+import { github } from "@/lib/gtihub"
 
 export async function POST(req: NextRequest) {
-  const session = await auth()
+  const session = await auth.api.getSession({
+    headers: await headers(),
+  })
   if (!session?.user) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
   }
@@ -19,13 +24,56 @@ export async function POST(req: NextRequest) {
     )
   }
 
-  const [app] = await db
-    .insert(apps)
-    .values({
-      ...result.data,
-      ownerId: session.user.id,
-    })
-    .returning()
+  const slug = slugify(result.data.name)
 
-  return NextResponse.json({ app }, { status: 201 })
+  const octokit = await github.getInstallationOctokit(
+    Number(process.env.GITHUB_APP_INSTALLATION_ID)
+  )
+
+  let repo
+  try {
+    const { data } = await octokit.request("POST /orgs/{org}/repos", {
+      org: process.env.GITHUB_ORG!,
+      name: slug,
+      private: true,
+      auto_init: true,
+    })
+    repo = data
+  } catch (error) {
+    console.error("Failed to create GitHub repo:", error)
+    return NextResponse.json(
+      { error: "Failed to create repository" },
+      { status: 500 }
+    )
+  }
+
+  try {
+    const [app] = await db
+      .insert(apps)
+      .values({
+        ...result.data,
+        ownerId: session.user.id,
+        slug,
+        githubInstallationId: process.env.GITHUB_APP_INSTALLATION_ID!,
+        githubRepoFullName: repo.full_name,
+        githubRepoId: String(repo.id),
+      })
+      .returning()
+
+    return NextResponse.json({ app }, { status: 201 })
+  } catch (error) {
+    console.error("Failed to create app row, rolling back repo:", error)
+    try {
+      await octokit.request("DELETE /repos/{owner}/{repo}", {
+        owner: process.env.GITHUB_ORG!,
+        repo: repo.name,
+      })
+    } catch (cleanupError) {
+      console.error("Failed to clean up orphaned repo:", cleanupError)
+    }
+    return NextResponse.json(
+      { error: "Failed to create app" },
+      { status: 500 }
+    )
+  }
 }
