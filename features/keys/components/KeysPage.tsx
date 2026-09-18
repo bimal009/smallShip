@@ -1,37 +1,53 @@
 "use client"
 
-import { useRouter } from "next/navigation"
+import { useDeleteKey, useKeys } from "@/features/keys/api/queries"
 import { toast } from "sonner"
 import { Button } from "@/components/ui/button"
+import { Skeleton } from "@/components/ui/skeleton"
 import { ConfirmAlert } from "@/components/confirm-alert"
 import { TrashIcon } from "lucide-react"
 
-type ApiKeyRow = {
-  id: string
-  name: string
-  keyPrefix: string
-  lastUsedAt: Date | null
-  createdAt: Date
-  revokedAt: Date | null
-}
-
-export function KeysList({ keys }: { keys: ApiKeyRow[] }) {
-  const router = useRouter()
+export function KeysList() {
+  const { data: keys = [], isPending, isError, error, refetch } = useKeys()
+  const deleteKey = useDeleteKey()
 
   async function handleRevoke(keyId: string, name: string) {
     try {
-      const res = await fetch(`/api/keys/${keyId}`, { method: "DELETE" })
-
-      if (!res.ok) {
-        const data = await res.json().catch(() => null)
-        throw new Error(data?.error ?? "Failed to revoke key")
-      }
-
+      await deleteKey.mutateAsync(keyId)
       toast.success(`"${name}" revoked`)
-      router.refresh()
     } catch (err) {
       toast.error(err instanceof Error ? err.message : "Something went wrong")
     }
+  }
+
+  if (isPending) {
+    return (
+      <div role="status" aria-label="Loading API keys">
+        <div aria-hidden="true" className="rounded-md border divide-y">
+          {[0, 1, 2].map((row) => (
+            <div key={row} className="flex items-center justify-between gap-3 px-4 py-3">
+              <div className="space-y-2">
+                <Skeleton className="h-4 w-28" />
+                <Skeleton className="h-3 w-20" />
+              </div>
+              <div className="flex items-center gap-3">
+                <Skeleton className="h-3 w-16" />
+                <Skeleton className="size-8" />
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
+    )
+  }
+
+  if (isError) {
+    return (
+      <div role="alert" className="space-y-2">
+        <p className="text-sm text-destructive">{error.message}</p>
+        <Button variant="outline" onClick={() => void refetch()}>Try again</Button>
+      </div>
+    )
   }
 
   if (keys.length === 0) {
@@ -61,14 +77,14 @@ export function KeysList({ keys }: { keys: ApiKeyRow[] }) {
               {key.revokedAt
                 ? "Revoked"
                 : key.lastUsedAt
-                  ? `Last used ${key.lastUsedAt.toLocaleDateString()}`
+                  ? `Last used ${new Date(key.lastUsedAt).toLocaleDateString()}`
                   : "Never used"}
             </span>
 
             {!key.revokedAt && (
               <ConfirmAlert
                 trigger={
-                  <Button size="icon" variant="ghost" className="size-8">
+                  <Button size="icon" variant="ghost" className="size-8" disabled={deleteKey.isPending} aria-label={`Revoke ${key.name}`}>
                     <TrashIcon className="size-4" />
                   </Button>
                 }

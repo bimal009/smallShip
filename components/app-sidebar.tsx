@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { useQueryClient } from "@tanstack/react-query";
 import { usePathname, useRouter } from "next/navigation";
 import { Activity, AppWindow, BookOpen, CircleHelp, CreditCard, Globe, Hash, KeyRound, LayoutDashboard, LogOut, PanelLeftClose, PanelLeftOpen, Rocket, Search, Settings } from "lucide-react";
 import { SidebarNav, type NavGroupData, type NavItemData } from "@/components/ui/sidebar";
@@ -42,6 +43,7 @@ type User = { name: string; email: string; avatar?: string };
 export function DashboardShell({ user, children }: { user: User; children: React.ReactNode }) {
   const pathname = usePathname();
   const router = useRouter();
+  const queryClient = useQueryClient();
   const isMobile = useIsMobile();
   const [open, setOpen] = useState(true);
   const [mobileOpen, setMobileOpen] = useState(false);
@@ -71,6 +73,7 @@ export function DashboardShell({ user, children }: { user: User; children: React
     try {
       const result = await signOut();
       if (result.error) throw new Error("Sign out failed");
+      queryClient.clear();
       router.replace("/sign-in");
       router.refresh();
     } catch { setError(true); setPending(false); }
@@ -103,4 +106,3 @@ export function DashboardShell({ user, children }: { user: User; children: React
     </CommandDialog>
   </div>;
 }
-

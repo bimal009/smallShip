@@ -8,6 +8,33 @@ import { randomUUID } from "crypto"
 
 
 
+export async function GET() {
+  const session = await auth.api.getSession({ headers: await headers() })
+
+  if (!session?.user) {
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
+  }
+
+  try {
+    const keys = await db.query.apiKeys.findMany({
+      where: { userId: session.user.id },
+      columns: {
+        id: true,
+        name: true,
+        keyPrefix: true,
+        lastUsedAt: true,
+        createdAt: true,
+        revokedAt: true,
+      },
+      orderBy: (apiKeys, { desc }) => [desc(apiKeys.createdAt)],
+    })
+    return NextResponse.json({ keys }, { headers: { "Cache-Control": "private, no-store" } })
+  } catch (error) {
+    console.error("Failed to load API keys:", error)
+    return NextResponse.json({ error: "Failed to load keys" }, { status: 500 })
+  }
+}
+
 export async function POST(req: NextRequest) {
   const session = await auth.api.getSession({
     headers: await headers(),

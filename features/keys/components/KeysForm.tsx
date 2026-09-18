@@ -15,49 +15,29 @@ import {
   DialogTrigger,
 } from "@/components/ui/dialog"
 import { CheckIcon, CopyIcon, PlusIcon } from "lucide-react"
-
-type CreatedKey = {
-  id: string
-  name: string
-  key: string 
-}
+import { type CreatedKey } from "@/features/keys/api/keys"
+import { useCreateKey } from "@/features/keys/api/queries"
 
 export function KeysForm({ onCreated }: { onCreated?: () => void }) {
   const [open, setOpen] = React.useState(false)
   const [name, setName] = React.useState("")
-  const [loading, setLoading] = React.useState(false)
+  const createKey = useCreateKey()
+  const loading = createKey.isPending
   const [error, setError] = React.useState<string | null>(null)
   const [createdKey, setCreatedKey] = React.useState<CreatedKey | null>(null)
   const [copied, setCopied] = React.useState(false)
 
   async function handleCreate() {
-    if (!name.trim()) return
-    setLoading(true)
+    if (!name.trim() || loading) return
     setError(null)
 
     try {
-      const res = await fetch("/api/keys", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ name }),
-      })
-
-      if (!res.ok) {
-        const data = await res.json().catch(() => null)
-        throw new Error(data?.error ?? "Failed to create key")
-      }
-
-      const data = await res.json()
-      setCreatedKey({
-        id: data.apiKey.id,
-        name: data.apiKey.name,
-        key: data.apiKey.key,
-      })
+      const key = await createKey.mutateAsync(name.trim())
+      setCreatedKey(key)
+      createKey.reset()
       onCreated?.()
     } catch (err) {
       setError(err instanceof Error ? err.message : "Something went wrong")
-    } finally {
-      setLoading(false)
     }
   }
 
@@ -69,6 +49,7 @@ export function KeysForm({ onCreated }: { onCreated?: () => void }) {
   }
 
   function handleOpenChange(next: boolean) {
+    if (loading && !next) return
     setOpen(next)
     if (!next) {
       setTimeout(() => {
