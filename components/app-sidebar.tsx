@@ -21,7 +21,7 @@ const groups: NavGroupData[] = [
     { id: "logs", title: "Logs", icon: Activity, href: "/dashboard/logs" },
   ] },
   { heading: "Workspace", items: [
-    { id: "apps", title: "Apps", icon: AppWindow, children: [{ id: "all-apps", title: "All apps", icon: Hash, href: "/dashboard/apps" }] },
+    { id: "apps", title: "Apps", icon: AppWindow, href:"/dashboard/apps" },
     { id: "domains", title: "Domains", icon: Globe, href: "/dashboard/domains" },
     { id: "billing", title: "Usage & Billing", icon: CreditCard, href: "/dashboard/usage" },
   ] },
