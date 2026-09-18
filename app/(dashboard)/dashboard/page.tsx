@@ -291,142 +291,27 @@ const levelColor: Record<string, string> = {
 export function DeployDashboard() {
   return (
     <div className="min-h-svh bg-background text-foreground">
-      <div className="mx-auto max-w-[1440px] px-4 py-6 md:px-8">
-        {/* ------------------------------- Top bar ------------------------------ */}
-        <header className="flex flex-wrap items-center justify-between gap-3">
-          <div className="flex items-center gap-3 rounded-full border border-border/60 bg-card px-3 py-2 shadow-sm">
-            <Button
-              variant="outline"
-              size="icon"
-              className="size-9 rounded-full"
-            >
-              <Menu className="size-4" />
-            </Button>
-            <div className="grid size-10 place-items-center rounded-full bg-foreground text-[11px] font-semibold text-background">
-              SM
-            </div>
-            <div className="pr-2">
-              <div className="text-sm font-semibold leading-tight">
-                ShipSmall
-              </div>
-              <div className="text-[11px] leading-tight text-muted-foreground">
-                Deploy Console
-              </div>
-            </div>
-          </div>
+      <div className="mx-auto  px-4 py-6 md:px-8">
 
-          <div className="flex items-center gap-2">
-            <Button
-              variant="outline"
-              size="icon"
-              className="size-10 rounded-full bg-card"
-            >
-              <Plus className="size-4" />
-            </Button>
-            <Button
-              variant="outline"
-              size="icon"
-              className="size-10 rounded-full bg-card"
-            >
-              <Bell className="size-4" />
-            </Button>
-            <div className="flex items-center gap-2 rounded-full border border-border/60 bg-card py-1.5 pl-1.5 pr-3 shadow-sm">
-              <Avatar className="size-8">
-                <AvatarImage
-                  src="https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=80&h=80&fit=crop&crop=faces"
-                  alt="Dwayne Tatum"
-                />
-                <AvatarFallback>DT</AvatarFallback>
-              </Avatar>
-              <div>
-                <div className="text-xs font-medium leading-tight">
-                  Dwayne Tatum
-                </div>
-                <div className="text-[10px] leading-tight text-muted-foreground">
-                  Founder
-                </div>
-              </div>
-            </div>
-            <div className="relative hidden md:block">
-              <Search className="absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
-              <Input
-                placeholder="Start searching here…"
-                className="w-64 rounded-full bg-card pl-9"
-              />
-            </div>
-          </div>
-        </header>
 
-        {/* ------------------------------ Body layout --------------------------- */}
         <div className="mt-6 flex gap-5">
-          {/* Left rail */}
-          <aside className="hidden w-12 shrink-0 flex-col gap-3 md:flex">
-            <Button
-              variant="outline"
-              size="icon"
-              className="size-12 rounded-full bg-card"
-            >
-              <Plus className="size-4" />
-            </Button>
-            <Button
-              variant="outline"
-              size="icon"
-              className="size-12 rounded-full bg-card"
-            >
-              <Share2 className="size-4" />
-            </Button>
-          </aside>
+      
 
           <main className="min-w-0 flex-1 space-y-5">
-            {/* ------------------------------ Hero row ---------------------------- */}
-            <div className="flex flex-wrap items-center justify-between gap-4">
+            <div className="flex flex-wrap items-center justify-end gap-4">
               <div className="flex items-center gap-3">
-                <div className="grid size-20 place-items-center rounded-full border border-border/60 bg-card shadow-sm">
-                  <div className="text-center">
-                    <div className="text-2xl font-semibold leading-none">
-                      19
-                    </div>
-                    <div className="mt-1 text-[10px] leading-none text-muted-foreground">
-                      Tue, Dec
-                    </div>
-                  </div>
-                </div>
+           
                 <Button className="h-12 rounded-full px-5 text-sm">
                   Deploy new app
                   <ArrowRight className="ml-1 size-4" />
                 </Button>
-                <Button
-                  variant="outline"
-                  size="icon"
-                  className="relative size-12 rounded-full bg-card"
-                >
-                  <Calendar className="size-5" />
-                  <span className="absolute right-3 top-3 size-1.5 rounded-full bg-primary" />
-                </Button>
+           
               </div>
 
-              <div className="flex items-center gap-5">
-                <div className="text-right">
-                  <h1 className="text-2xl font-semibold tracking-tight md:text-3xl">
-                    Hey, Need help? <span className="inline-block">👋</span>
-                  </h1>
-                  <p className="text-2xl font-light text-muted-foreground md:text-3xl">
-                    Just ask me anything!
-                  </p>
-                </div>
-                <Button
-                  variant="outline"
-                  size="icon"
-                  className="hidden size-16 rounded-full bg-card sm:inline-flex"
-                >
-                  <Mic className="size-5" />
-                </Button>
-              </div>
+   
             </div>
 
-            {/* ------------------------------ Stat row ---------------------------- */}
             <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-4">
-              {/* Instance card */}
               <Card className={CARD}>
                 <CardContent className="p-5">
                   <div className="flex items-center justify-between">

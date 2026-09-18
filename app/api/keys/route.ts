@@ -5,7 +5,6 @@ import { generateApiKey } from "@/lib/helpers/keys"
 import { headers } from "next/headers"
 import { NextRequest, NextResponse } from "next/server"
 import { randomUUID } from "crypto"
-import { z } from "zod"
 
 
 
