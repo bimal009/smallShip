@@ -6,6 +6,7 @@ export const relations = defineRelations(schema, (r) => ({
     sessions: r.many.session(),
     accounts: r.many.account(),
     apps: r.many.apps(),
+    apiKeys: r.many.apiKeys(),
   },
 
   session: {
@@ -37,6 +38,14 @@ export const relations = defineRelations(schema, (r) => ({
     host: r.one.hosts({
       from: r.apps.hostId,
       to: r.hosts.id,
+      optional: false,
+    }),
+  },
+
+  apiKeys: {
+    user: r.one.user({
+      from: r.apiKeys.userId,
+      to: r.user.id,
       optional: false,
     }),
   },

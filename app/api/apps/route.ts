@@ -32,15 +32,19 @@ export async function POST(req: NextRequest) {
 
   let repo
   try {
-    const { data } = await octokit.request("POST /orgs/{org}/repos", {
-      org: process.env.GITHUB_ORG!,
-      name: slug,
-      private: true,
-      auto_init: true,
-    })
+    const { data } = await octokit.request(
+      "POST /repos/{template_owner}/{template_repo}/generate",
+      {
+        template_owner: process.env.GITHUB_ORG!,
+        template_repo: "nextjs-app-template",
+        owner: process.env.GITHUB_ORG!,
+        name: slug,
+        private: true,
+      }
+    )
     repo = data
   } catch (error) {
-    console.error("Failed to create GitHub repo:", error)
+    console.error("Failed to create repo from template:", error)
     return NextResponse.json(
       { error: "Failed to create repository" },
       { status: 500 }

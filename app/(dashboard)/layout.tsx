@@ -1,9 +1,13 @@
+import { auth } from "@/auth";
 import { AppSidebar } from "@/components/app-sidebar";
 import { SidebarInset, SidebarProvider } from "@/components/ui/sidebar";
+import { headers } from "next/headers";
 
 
 
-export default function DashboardLayout({ children }:{children:React.ReactNode}) {
+export default async function DashboardLayout({ children }:{children:React.ReactNode}) {
+   const session = await auth.api.getSession({ headers: await headers() })
+   console.log(session)
   return (
 
 
@@ -17,7 +21,13 @@ export default function DashboardLayout({ children }:{children:React.ReactNode})
         } as React.CSSProperties
       }
     >
-      <AppSidebar variant="inset" />
+      <AppSidebar
+        user={{
+          name: session!.user.name,
+          email: session!.user.email,
+          avatar: session!.user.image ?? undefined,
+        }}
+      />
     {children}
 
       <SidebarInset>
