@@ -1,4 +1,3 @@
-// app/dashboard/keys/keys-form.tsx
 "use client"
 
 import * as React from "react"
@@ -16,7 +15,7 @@ import {
 } from "@/components/ui/dialog"
 import { CheckIcon, CopyIcon, PlusIcon } from "lucide-react"
 import { type CreatedKey } from "@/features/keys/api/keys"
-import { useCreateKey } from "@/features/keys/api/queries"
+import { useCreateKey } from "@/features/keys/hooks/queries"
 
 export function KeysForm({ onCreated }: { onCreated?: () => void }) {
   const [open, setOpen] = React.useState(false)

@@ -1,4 +1,4 @@
-import { github } from "@/lib/gtihub"
+import { github } from "@/lib/github"
 
 async function getOctokit() {
   return github.getInstallationOctokit(

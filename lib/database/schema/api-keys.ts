@@ -1,6 +1,6 @@
 import { pgTable, text, timestamp, index } from "drizzle-orm/pg-core";
 import { user } from "./user";
-import { createInsertSchema } from "drizzle-orm/zod";
+import { createInsertSchema, createSelectSchema } from "drizzle-orm/zod";
 
 export const apiKeys = pgTable(
   "api_keys",
@@ -40,3 +40,5 @@ export const createApiKeySchema = createInsertSchema(apiKeys, {
   createdAt: true,
   updatedAt: true,
 });
+
+export const selectSchema=createSelectSchema(apiKeys)

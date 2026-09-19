@@ -4,7 +4,30 @@ import { apps, appsInsertSchema } from "@/lib/database/schema"
 import { headers } from "next/headers"
 import { NextRequest, NextResponse } from "next/server"
 import { slugify } from "@/lib/slugify"
-import { github } from "@/lib/gtihub"
+import { github } from "@/lib/github"
+
+export async function GET() {
+  const session = await auth.api.getSession({ headers: await headers() })
+
+  if (!session?.user) {
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
+  }
+
+  try {
+    const userApps = await db.query.apps.findMany({
+      where: { ownerId: session.user.id },
+      orderBy: (apps, { desc }) => [desc(apps.createdAt)],
+    })
+
+    return NextResponse.json(
+      { apps: userApps },
+      { headers: { "Cache-Control": "private, no-store" } }
+    )
+  } catch (error) {
+    console.error("Failed to load apps:", error)
+    return NextResponse.json({ error: "Failed to load apps" }, { status: 500 })
+  }
+}
 
 export async function POST(req: NextRequest) {
   const session = await auth.api.getSession({

@@ -1,7 +1,7 @@
 "use client"
 
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
-import { createKey, deleteKey, getKeys } from "./keys"
+import { createKey, deleteKey, getKeys } from "../api/keys"
 
 export const keysQueryKey = ["api-keys"] as const
 

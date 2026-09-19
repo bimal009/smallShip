@@ -1,6 +1,6 @@
 "use client"
 
-import { useDeleteKey, useKeys } from "@/features/keys/api/queries"
+import { useDeleteKey, useKeys } from "@/features/keys/hooks/queries"
 import { toast } from "sonner"
 import { Button } from "@/components/ui/button"
 import { Skeleton } from "@/components/ui/skeleton"

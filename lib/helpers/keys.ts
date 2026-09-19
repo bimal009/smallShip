@@ -10,17 +10,26 @@ export function generateApiKey() {
   return { raw, keyHash, keyPrefix }
 }
 
+
 export async function verifyApiKey(rawKey: string) {
-  const keyHash = createHash("sha256").update(rawKey).digest("hex")
+  try {
+    const keyHash = createHash("sha256").update(rawKey).digest("hex")
 
-  const record = await db.query.apiKeys.findFirst({
-    where: { keyHash},
-  })
+    const record = await db.query.apiKeys.findFirst({
+      where: { keyHash },
+    })
 
-  if (!record) return null
-  if (record.expiresAt && record.expiresAt < new Date()) return null
+    if (!record) return null
+    if (record.expiresAt && record.expiresAt < new Date()) return null
 
-  db.update(apiKeys).set({ lastUsedAt: new Date() }).where(eq(apiKeys.id, record.id))
+    db.update(apiKeys)
+      .set({ lastUsedAt: new Date() })
+      .where(eq(apiKeys.id, record.id))
+      .catch((err) => console.error("apiKey lastUsedAt update failed:", err))
 
-  return record
+    return record
+  } catch (err) {
+    console.error("verifyApiKey failed:", err)
+    return null
+  }
 }
