@@ -26,3 +26,15 @@ export const appEnvKeyUpdateSchema = appEnvKeyInsertSchema.partial().refine(
   (data) => Object.keys(data).length > 0,
   { message: "At least one field is required" }
 );
+
+export const appEnvKeysBulkInsertSchema = z.object({
+  keys: z.array(appEnvKeyInsertSchema.pick({ key: true })).min(1, "At least one key is required").superRefine((keys, ctx) => {
+    const seen = new Set<string>();
+    keys.forEach(({ key }, index) => {
+      if (seen.has(key)) {
+        ctx.addIssue({ code: "custom", message: "Each key must be unique", path: [index, "key"] });
+      }
+      seen.add(key);
+    });
+  }),
+}).strict();

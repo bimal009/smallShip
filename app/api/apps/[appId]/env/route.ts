@@ -1,6 +1,6 @@
 import { auth } from "@/auth"
 import { db } from "@/lib/database"
-import { apps, appEnvKeys, appEnvKeyInsertSchema } from "@/lib/database/schema"
+import { apps, appEnvKeys, appEnvKeysBulkInsertSchema } from "@/lib/database/schema"
 import { headers } from "next/headers"
 import { z } from "zod"
 import { and, asc, eq } from "drizzle-orm"
@@ -56,12 +56,14 @@ export async function POST(req: NextRequest, { params }: Context) {
       return NextResponse.json({ error: "App not found" }, { status: 404 })
     }
 
-    const result = appEnvKeyInsertSchema.safeParse(await req.json())
+    const result = appEnvKeysBulkInsertSchema.safeParse(await req.json())
     if (!result.success) {
       return NextResponse.json({ error: "Invalid request", issues: result.error.flatten() }, { status: 400 })
     }
-    const [key] = await db.insert(appEnvKeys).values({ ...result.data, appId }).returning()
-    return NextResponse.json({ key }, { status: 201 })
+    const keys = await db.insert(appEnvKeys)
+      .values(result.data.keys.map(({ key }) => ({ key, appId })))
+      .returning()
+    return NextResponse.json({ keys }, { status: 201 })
   } catch (error) {
     if (error instanceof SyntaxError) {
       return NextResponse.json({ error: "Invalid JSON body" }, { status: 400 })
