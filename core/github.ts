@@ -1,13 +1,13 @@
 import simpleGit from "simple-git"
-import { SANDBOX_ROOT } from "./sandbox"
+
 import { github } from "@/lib/github"
 import { getOwnedApp } from "@/mcp/core/apps"
+import { SANDBOX_ROOT, sandboxWorkspacePath } from "./constants"
 
 export const gitStatus = async (appId: string) => {
-  const workspacePath = `${SANDBOX_ROOT}/${appId}`
 
   try {
-    const git = simpleGit(workspacePath)
+    const git = simpleGit(sandboxWorkspacePath(appId))
     const status = await git.status()
 
     return {
@@ -44,14 +44,14 @@ export const getDiff = async (appId: string, filePath?: string) => {
 
 
 export const gitPush = async (appId: string, message: string, userId: string) => {
-  const workspacePath = `${SANDBOX_ROOT}/${appId}`
+ 
   const app = await getOwnedApp(appId, userId)
   if (!app) throw new Error("App not found")
 
   const repoFullName = app.githubRepoFullName
 
   try {
-    const git = simpleGit(workspacePath)
+    const git = simpleGit(sandboxWorkspacePath(appId))
 
     const status = await git.status()
     if (status.isClean()) {
@@ -78,7 +78,7 @@ export const gitPush = async (appId: string, message: string, userId: string) =>
   } catch (error) {
     throw new Error(`Failed to push for app ${appId}: ${(error as Error).message}`)
   } finally {
-    const git = simpleGit(workspacePath)
+    const git = simpleGit(sandboxWorkspacePath(appId))
     await git
       .remote(["set-url", "origin", `https://github.com/${repoFullName}.git`])
       .catch(() => {})

@@ -35,6 +35,7 @@
     "dotenv": "^17.4.2",
     "drizzle-orm": "1.0.0-rc.4",
     "embla-carousel-react": "^8.6.0",
+    "get-port": "^7.2.0",
     "input-otp": "^1.5.0",
     "lucide-react": "^1.45.0",
     "mcp-handler": "^2.1.1",

@@ -28,7 +28,7 @@ import { Card } from "@/components/ui/card"
 import { Skeleton } from "@/components/ui/skeleton"
 import { cn } from "@/lib/utils"
 import { AppsForm } from "./AppsForm"
-import { KeysForm } from "@/features/keys/components/KeysForm"
+import { EnvKeysForm } from "@/features/env/components/EnvKeysForm"
 import type { AppOutput } from "@/lib/database/schema/apps"
 
 const STATUS_CONFIG: Record<string, { dot: string; text: string; label?: string; pulse?: boolean }> = {
@@ -125,7 +125,7 @@ function AppCard({ app }: { app: AppOutput }) {
               <DropdownMenuContent align="end">
                 <DropdownMenuItem onClick={() => setKeysOpen(true)}>
                   <KeyRound className="size-4" />
-                  Keys
+                  Environment keys
                 </DropdownMenuItem>
                 <DropdownMenuItem onClick={() => setEditOpen(true)}>
                   <Pencil className="size-4" />
@@ -210,7 +210,7 @@ function AppCard({ app }: { app: AppOutput }) {
         onConfirm={handleDelete}
       />
       {editOpen && <AppsForm app={app} onOpenChange={setEditOpen} />}
-      {keysOpen && <KeysForm app={app} onOpenChange={setKeysOpen} />}
+      {keysOpen && <EnvKeysForm app={app} onOpenChange={setKeysOpen} />}
     </Card>
   )
 }

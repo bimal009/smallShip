@@ -1,10 +1,16 @@
 import simpleGit from "simple-git"
 import fs from "fs/promises"
 import { github } from "@/lib/github"
+import { buildWorkspacePath, sandboxWorkspacePath } from "./constants"
 
+export async function cloneRepo(
+  appId: string,
+  repoFullName: string,
+  isSandbox: boolean,
+  branch: string = "main"
+) {
+  const workspacePath = isSandbox ? sandboxWorkspacePath(appId) : buildWorkspacePath(appId)
 
-export async function cloneRepo(appId: string, repoFullName: string, branch: string = "main",sandboxRoot:string) {
-  const workspacePath = `${sandboxRoot}/${appId}`
   await fs.rm(workspacePath, { recursive: true, force: true })
   await fs.mkdir(workspacePath, { recursive: true })
 

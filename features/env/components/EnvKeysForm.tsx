@@ -13,10 +13,10 @@ import {
   DialogHeader, DialogTitle,
 } from "@/components/ui/dialog"
 
-type KeysInput = { keys: { key: string; value: string }[] }
+type EnvKeysInput = { keys: { key: string; value: string }[] }
 
-export function KeysForm({ app, onOpenChange }: { app: AppOutput; onOpenChange: (open: boolean) => void }) {
-  const form = useForm<KeysInput>({
+export function EnvKeysForm({ app, onOpenChange }: { app: AppOutput; onOpenChange: (open: boolean) => void }) {
+  const form = useForm<EnvKeysInput>({
     defaultValues: { keys: [{ key: "", value: "" }] },
   })
   const { fields, append, remove } = useFieldArray({ control: form.control, name: "keys" })
@@ -30,7 +30,7 @@ export function KeysForm({ app, onOpenChange }: { app: AppOutput; onOpenChange: 
     }
   }
 
-  function handleSubmit(data: KeysInput) {
+  function handleSubmit(data: EnvKeysInput) {
     const seen = new Set<string>()
     let duplicate = false
     data.keys.forEach(({ key }, index) => {

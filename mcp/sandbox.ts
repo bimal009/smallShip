@@ -13,7 +13,7 @@ export function registerSandboxTools(server: McpServer) {
   server.registerTool(
     "destroy-sandbox",
     {
-      description: "Stop and remove an app's sandbox container and delete its workspace, including uncommitted files. The app and GitHub repository are retained.",
+      description: "Stop and remove only the app's code-editing sandbox and its workspace, including uncommitted files. Build containers, production containers, the app, and its GitHub repository are retained.",
       inputSchema: z.object({ appId: z.uuid() }).strict(),
       annotations: { readOnlyHint: false, destructiveHint: true, idempotentHint: true },
     },
@@ -39,7 +39,7 @@ export function registerSandboxTools(server: McpServer) {
       }
 
       try {
-        await db.update(apps).set({ containerId: null, rootDir: "/" })
+        await db.update(apps).set({ rootDir: "/" })
           .where(and(eq(apps.id, appId), eq(apps.ownerId, userId)))
       } catch (error) {
         console.error("Failed to clear sandbox state:", error)
@@ -87,7 +87,7 @@ export function registerSandboxTools(server: McpServer) {
       }
 
       try {
-        await db.update(apps).set({ containerId, rootDir: workspacePath })
+        await db.update(apps).set({ rootDir: workspacePath })
           .where(and(eq(apps.id, appId), eq(apps.ownerId, userId)))
       } catch (error) {
         console.error("Failed to persist sandbox state:", error)

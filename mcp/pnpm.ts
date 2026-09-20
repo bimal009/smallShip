@@ -2,12 +2,14 @@ import { McpServer } from "@modelcontextprotocol/server"
 import { z } from "zod"
 import { installAndBuildPnpm } from "@/core/pnpm"
 import { getOwnedApp } from "./core/apps"
+import { getSandboxContainerId } from "@/core/sandbox"
 
 export function registerPnpmTools(server: McpServer) {
   server.registerTool(
     "pnpm-install-and-build",
     {
-      description: "Install dependencies with pnpm and then build an app in its sandbox. Build runs only if installation succeeds.",
+      description:
+        "Install dependencies and build the app inside its active sandbox. Use this while writing code, after file changes, to verify the app builds. Build runs only if installation succeeds. Requires an active sandbox created via create-sandbox.",
       inputSchema: z.object({ appId: z.uuid() }).strict(),
       annotations: { readOnlyHint: false, idempotentHint: false },
     },
@@ -23,7 +25,12 @@ export function registerPnpmTools(server: McpServer) {
           return { isError: true, content: [{ type: "text", text: "App not found" }] }
         }
 
-        const result = await installAndBuildPnpm(appId)
+        const containerId = await getSandboxContainerId(appId)
+        if (!containerId) {
+          return { isError: true, content: [{ type: "text", text: "No active sandbox for this app. Call create-sandbox first." }] }
+        }
+
+        const result = await installAndBuildPnpm(containerId)
         return {
           isError: result.exitCode !== 0,
           content: [{ type: "text", text: JSON.stringify(result) }],
