@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import { usePathname, useRouter } from "next/navigation";
-import { Activity, AppWindow, BookOpen, CircleHelp, CreditCard, Globe, Hash, KeyRound, LayoutDashboard, LogOut, PanelLeftClose, PanelLeftOpen, Rocket, Search, Settings } from "lucide-react";
+import { Activity, AppWindow, BookOpen, CircleHelp, CreditCard, Globe, Hash, LayoutDashboard, LogOut, PanelLeftClose, PanelLeftOpen, Rocket, Search, Settings } from "lucide-react";
 import { SidebarNav, type NavGroupData, type NavItemData } from "@/components/ui/sidebar";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
@@ -26,7 +26,6 @@ const groups: NavGroupData[] = [
     { id: "billing", title: "Usage & Billing", icon: CreditCard, href: "/dashboard/usage" },
   ] },
   { heading: "Developers", items: [
-    { id: "keys", title: "Keys", icon: KeyRound, href: "/dashboard/keys" },
    
     { id: "docs", title: "Docs", icon: BookOpen, href: "/dashboard/docs" },
     { id: "help", title: "Get Help", icon: CircleHelp, href: "/help" },

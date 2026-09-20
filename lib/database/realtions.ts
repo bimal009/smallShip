@@ -38,6 +38,15 @@ export const relations = defineRelations(schema, (r) => ({
     host: r.one.hosts({
       from: r.apps.hostId,
       to: r.hosts.id,
+      optional: true,
+    }),
+    envKeys: r.many.appEnvKeys(),
+  },
+
+  appEnvKeys: {
+    app: r.one.apps({
+      from: r.appEnvKeys.appId,
+      to: r.apps.id,
       optional: false,
     }),
   },

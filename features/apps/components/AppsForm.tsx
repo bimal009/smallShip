@@ -10,13 +10,13 @@ import { useUpdateApp } from "../hooks/use-apps"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import {
-  Sheet,
-  SheetContent,
-  SheetDescription,
-  SheetFooter,
-  SheetHeader,
-  SheetTitle,
-} from "@/components/ui/sheet"
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog"
 
 export function AppsForm({
   app,
@@ -46,14 +46,14 @@ export function AppsForm({
   }
 
   return (
-    <Sheet open onOpenChange={(open) => { if (!isSubmitting) onOpenChange(open) }}>
-      <SheetContent showCloseButton={!isSubmitting}>
-        <SheetHeader>
-          <SheetTitle>Edit app</SheetTitle>
-          <SheetDescription>Update the name of your app.</SheetDescription>
-        </SheetHeader>
-        <form onSubmit={form.handleSubmit(onSubmit)} noValidate className="flex min-h-0 flex-1 flex-col">
-          <div className="space-y-2 overflow-y-auto px-4">
+    <Dialog open onOpenChange={(open) => { if (!isSubmitting) onOpenChange(open) }}>
+      <DialogContent showCloseButton={!isSubmitting}>
+        <DialogHeader>
+          <DialogTitle>Edit app</DialogTitle>
+          <DialogDescription>Update the name of your app.</DialogDescription>
+        </DialogHeader>
+        <form onSubmit={form.handleSubmit(onSubmit)} noValidate className="space-y-4">
+          <div className="space-y-2">
             <label htmlFor={nameId} className="text-sm font-medium">App name</label>
             <Input
               id={nameId}
@@ -69,16 +69,16 @@ export function AppsForm({
             )}
             {errors.root && <p role="alert" className="text-sm text-destructive">{errors.root.message}</p>}
           </div>
-          <SheetFooter>
+          <DialogFooter>
             <Button type="submit" disabled={isSubmitting}>
               {isSubmitting ? "Saving..." : "Save changes"}
             </Button>
             <Button type="button" variant="outline" disabled={isSubmitting} onClick={() => onOpenChange(false)}>
               Cancel
             </Button>
-          </SheetFooter>
+          </DialogFooter>
         </form>
-      </SheetContent>
-    </Sheet>
+      </DialogContent>
+    </Dialog>
   )
 }
