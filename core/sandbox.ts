@@ -20,12 +20,9 @@ export async function initSandbox(
   const workspacePath = sandboxWorkspacePath(appId)
   const logPrefix = `[sandbox:${appId}]`
   const startedAt = Date.now()
-  console.info(`${logPrefix} Initializing sandbox`, { repoFullName, branch, workspacePath })
 
   try {
-    console.info(`${logPrefix} Cloning repository`)
     await cloneRepo(appId, repoFullName,true, branch)
-    console.info(`${logPrefix} Repository cloned`, { workspacePath })
   } catch (error) {
     console.error(`${logPrefix} Repository clone failed`, { elapsedMs: Date.now() - startedAt })
     throw new Error(`Failed to clone repo for app ${appId}: ${(error as Error).message}`)
@@ -33,35 +30,26 @@ export async function initSandbox(
 
   let stage = "creating container"
   try {
-    console.info(`${logPrefix} Creating container`, {
-      image: "node:24-slim", name: `sandbox-${appId}`,
-      workspacePath, workingDir: "/workspace", networkMode: "none",
-    })
-    const container = await docker.createContainer({
-      Image: "node:24-slim",
-      name: `sandbox-${appId}`,
-      Cmd: ["sleep", "infinity"],
-      User: "1000:1000",
-      HostConfig: {
-        // Runtime: "runsc", // enable in prod
-        SecurityOpt: ["no-new-privileges"],
-        CapDrop: ["ALL"],
-        Memory: 512 * 1024 * 1024,
-        CpuQuota: 100000,
-        PidsLimit: 128,
-        Binds: [`${workspacePath}:/workspace`],
-        // NetworkMode: "none",
-      },
-      WorkingDir: "/workspace",
-    })
+  const container = await docker.createContainer({
+  Image: "shipsmall-sandbox-base:latest",
+  name: `sandbox-${appId}`,
+  Cmd: ["sleep", "infinity"],
+  User: "1000:1000",
+  HostConfig: {
+    // Runtime: "runsc", // enable in prod
+    SecurityOpt: ["no-new-privileges"],
+    CapDrop: ["ALL"],
+  Memory: 1024 * 1024 * 1024,
+    CpuQuota: 100000,
+    PidsLimit: 128,
+    Binds: [`${workspacePath}:/workspace`],
+    // NetworkMode omitted — network stays open for pnpm install
+  },
+  WorkingDir: "/workspace",
+})
 
-    console.info(`${logPrefix} Container created`, { containerId: container.id })
     stage = "starting container"
-    console.info(`${logPrefix} Starting container`, { containerId: container.id })
     await container.start()
-    console.info(`${logPrefix} Sandbox ready`, {
-      containerId: container.id, workspacePath, elapsedMs: Date.now() - startedAt,
-    })
     return { containerId: container.id, workspacePath }
   } catch (error) {
     console.error(`${logPrefix} Failed while ${stage}`, {
@@ -161,22 +149,22 @@ export async function createBuildContainer(
   }
 
   try {
-    const container = await docker.createContainer({
-      Image: "node:24-slim",
-      name: `build-${appId}`,
-      Cmd: ["sleep", "infinity"],
-      User: "1000:1000",
-      HostConfig: {
-        // Runtime: "runsc", // enable in prod
-        SecurityOpt: ["no-new-privileges"],
-        CapDrop: ["ALL"],
-        Memory: 512 * 1024 * 1024,
-        CpuQuota: 100000,
-        PidsLimit: 128,
-        Binds: [`${workspacePath}:/workspace`],
-      },
-      WorkingDir: "/workspace",
-    })
+const container = await docker.createContainer({
+  Image: "shipsmall-sandbox-base:latest",
+  name: `build-${appId}`,
+  Cmd: ["sleep", "infinity"],
+  User: "1000:1000",
+  HostConfig: {
+    // Runtime: "runsc", // enable in prod
+    SecurityOpt: ["no-new-privileges"],
+    CapDrop: ["ALL"],
+   Memory: 1024 * 1024 * 1024,
+    CpuQuota: 100000,
+    PidsLimit: 128,
+    Binds: [`${workspacePath}:/workspace`],
+  },
+  WorkingDir: "/workspace",
+})
 
     await container.start()
     return { containerId: container.id, workspacePath }

@@ -13,7 +13,7 @@ export async function buildApp(
 
   onLog("Installing and building...")
   try {
-    const { exitCode, output } = await installAndBuildPnpm(appId, containerId)
+    const { exitCode, output } = await installAndBuildPnpm(containerId)
     onLog(output)
     if (exitCode !== 0) throw new Error("Build failed")
 

@@ -29,8 +29,7 @@ export function registerDeployTools(server: McpServer) {
       if (!claim) return { isError: true, content: [{ type: "text", text: "App state changed; deployment was not started" }] }
       claimed = true
 
-      const result = await deployApp(appId, app.githubRepoFullName, app.githubBranch,
-        (line) => console.info(`[deploy:${appId}] ${line}`))
+      const result = await deployApp(appId, app.githubRepoFullName, app.githubBranch, () => {})
       started = true
       const [saved] = await db.update(apps).set({
         status: "running", containerId: result.containerId, port: result.port,
