@@ -5,6 +5,7 @@ import { registerSandboxTools } from "@/mcp/sandbox"
 import { registerGithubTools } from "@/mcp/github"
 import { registerDbTools } from "@/mcp/db"
 import { registerPnpmTools } from "@/mcp/pnpm"
+import { registerEnvTools } from "@/mcp/env"
 import { conventions, registerConventionsResource } from "@/mcp/resources/conventions"
 import { verifyApiKeyToken } from "@/mcp/core/auth"
 
@@ -17,6 +18,7 @@ const handler = createMcpHandler((server) => {
   registerGithubTools(server)
   registerDbTools(server)
   registerPnpmTools(server)
+  registerEnvTools(server)
   registerConventionsResource(server)
 }, {
   serverInfo: { name: "small-ship", version: "1.0.0" },
