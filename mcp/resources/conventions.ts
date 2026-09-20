@@ -11,8 +11,9 @@ Follow this order when creating and working on an app:
 5. Run commands through the available sandbox command tools, using the containerId returned by create-sandbox. Run them in /workspace. Use the project's package manager and scripts for dependency installation, migrations, tests, and builds.
 6. When database changes require it, generate and run the project's migrations. Run the relevant checks and build, inspect their output and exit codes, and fix failures before continuing.
 7. Use git-status and git-diff to review changes, then call git-push with appId and a descriptive message to stage all changes, commit, and push. Do not include secrets or unrelated files. Verify the tool result before reporting completion; a clean workspace results in no commit or push.
+8. Immediately after a successful git-push, call destroy-sandbox with the same appId to tear down the sandbox container and its workspace. Do this even if the workspace was already clean and git-push made no commit. Do not leave a sandbox running once you are done with an app for the session.
 
-Use only tools exposed by the MCP server. If command execution is unavailable or a command is blocked by missing dependencies, credentials, or network access, report the blocker. Do not claim migrations, builds, commits, or pushes ran unless tool results confirm they succeeded.
+Use only tools exposed by the MCP server. If command execution is unavailable or a command is blocked by missing dependencies, credentials, or network access, report the blocker. Do not claim migrations, builds, commits, pushes, or sandbox destruction ran unless tool results confirm they succeeded.
 `
 
 export function registerConventionsResource(server: McpServer) {

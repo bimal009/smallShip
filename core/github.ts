@@ -45,7 +45,6 @@ export const getDiff = async (appId: string, filePath?: string) => {
 
 export const gitPush = async (appId: string, message: string, userId: string) => {
   const workspacePath = `${SANDBOX_ROOT}/${appId}`
-
   const app = await getOwnedApp(appId, userId)
   if (!app) throw new Error("App not found")
 

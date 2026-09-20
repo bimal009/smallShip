@@ -1,4 +1,6 @@
+
 import Docker from "dockerode"
+import fs from "node:fs/promises"
 import { cloneRepo } from "./clone"
 
 
@@ -49,6 +51,32 @@ export async function initSandbox(
   } catch (error) {
     throw new Error(`Failed to start container for app ${appId}: ${(error as Error).message}`)
   }
+}
+
+
+
+export async function destroySandbox(appId: string) {
+  const container = docker.getContainer(`sandbox-${appId}`)
+
+  try {
+    await container.stop()
+  } catch (err: unknown) {
+    if (
+      typeof err !== "object" || err === null || !("statusCode" in err) ||
+      (err.statusCode !== 304 && err.statusCode !== 404)
+    ) throw err
+  }
+
+  try {
+    await container.remove()
+  } catch (err: unknown) {
+    if (
+      typeof err !== "object" || err === null || !("statusCode" in err) ||
+      err.statusCode !== 404
+    ) throw err
+  }
+
+  await fs.rm(workSpacePath(appId), { recursive: true, force: true })
 }
 
 export async function execInSandbox(containerId: string, cmd: string[]) {

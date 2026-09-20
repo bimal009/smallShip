@@ -19,7 +19,6 @@ export async function cloneRepo(appId: string, repoFullName: string, branch: str
   const git = simpleGit()
   await git.clone(cloneUrl, workspacePath, ["--branch", branch, "--depth", "1"])
 
-  // scrub token before this dir ever gets bind-mounted into the sandbox
   await simpleGit(workspacePath).remote(["set-url", "origin", `https://github.com/${repoFullName}.git`])
 
   return workspacePath
