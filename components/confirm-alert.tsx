@@ -14,7 +14,9 @@ import {
 import { Button } from "@/components/ui/button"
 
 type ConfirmAlertProps = {
-  trigger: React.ReactElement
+  trigger?: React.ReactElement
+  open?: boolean
+  onOpenChange?: (open: boolean) => void
   title: string
   description: string
   confirmLabel?: string
@@ -29,8 +31,12 @@ export function ConfirmAlert({
   confirmLabel = "Confirm",
   variant = "default",
   onConfirm,
+  open: controlledOpen,
+  onOpenChange,
 }: ConfirmAlertProps) {
-  const [open, setOpen] = React.useState(false)
+  const [internalOpen, setInternalOpen] = React.useState(false)
+  const open = controlledOpen ?? internalOpen
+  const setOpen = onOpenChange ?? setInternalOpen
   const [loading, setLoading] = React.useState(false)
 
   async function handleConfirm() {
@@ -45,7 +51,7 @@ export function ConfirmAlert({
 
   return (
     <AlertDialog open={open} onOpenChange={setOpen}>
-      <AlertDialogTrigger render={trigger} />
+      {trigger && <AlertDialogTrigger render={trigger} />}
       <AlertDialogContent>
         <AlertDialogHeader>
           <AlertDialogTitle>{title}</AlertDialogTitle>

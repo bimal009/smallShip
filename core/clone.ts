@@ -1,18 +1,14 @@
 import simpleGit from "simple-git"
-import path from "path"
 import fs from "fs/promises"
 import { github } from "@/lib/github"
 
-const BUILD_ROOT = process.env.BUILD_ROOT ?? "/var/shipsmall/builds"
 
-export async function cloneRepo(appId: string, repoFullName: string, branch: string="main") {
-  const buildPath = path.join(BUILD_ROOT, appId)
-
-  await fs.rm(buildPath, { recursive: true, force: true })
-  await fs.mkdir(buildPath, { recursive: true })
+export async function cloneRepo(appId: string, repoFullName: string, branch: string = "main",sandboxRoot:string) {
+  const workspacePath = `${sandboxRoot}/${appId}`
+  await fs.rm(workspacePath, { recursive: true, force: true })
+  await fs.mkdir(workspacePath, { recursive: true })
 
   const installationId = Number(process.env.GITHUB_APP_INSTALLATION_ID)
-
   const { token: installationToken } = await github.octokit.auth({
     type: "installation",
     installationId,
@@ -21,7 +17,10 @@ export async function cloneRepo(appId: string, repoFullName: string, branch: str
   const cloneUrl = `https://x-access-token:${installationToken}@github.com/${repoFullName}.git`
 
   const git = simpleGit()
-  await git.clone(cloneUrl, buildPath, ["--branch", branch, "--depth", "1"])
+  await git.clone(cloneUrl, workspacePath, ["--branch", branch, "--depth", "1"])
 
-  return buildPath
+  // scrub token before this dir ever gets bind-mounted into the sandbox
+  await simpleGit(workspacePath).remote(["set-url", "origin", `https://github.com/${repoFullName}.git`])
+
+  return workspacePath
 }

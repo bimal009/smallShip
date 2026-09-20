@@ -3,8 +3,39 @@ import { db } from "@/lib/database"
 import { slugify } from "@/lib/slugify"
 import { github } from "@/lib/github"
 import { McpServer } from "@modelcontextprotocol/server"
+import { z } from "zod"
 
 export function registerMcpTools(server: McpServer) {
+  server.registerTool(
+    "get-apps",
+    {
+      description: "Get all apps owned by the authenticated user, newest first",
+      inputSchema: z.object({}).strict(),
+      annotations: { readOnlyHint: true },
+    },
+    async (_input, extra) => {
+      const userId = extra.http?.authInfo?.clientId
+      if (!userId) {
+        throw new Error("Unauthorized")
+      }
+
+      try {
+        const userApps = await db.query.apps.findMany({
+          where: { ownerId: userId },
+          orderBy: (apps, { desc }) => [desc(apps.createdAt)],
+        })
+
+        return { content: [{ type: "text", text: JSON.stringify({ apps: userApps }) }] }
+      } catch (error) {
+        console.error("Failed to load apps:", error)
+        return {
+          isError: true,
+          content: [{ type: "text", text: "Failed to load apps" }],
+        }
+      }
+    }
+  )
+
   server.registerTool(
     "create-app",
     {
@@ -46,7 +77,14 @@ export function registerMcpTools(server: McpServer) {
           })
           .returning()
 
-        return { content: [{ type: "text", text: JSON.stringify(app) }] }
+        return {
+  content: [
+    {
+      type: "text",
+      text: JSON.stringify(app) + "\n\nBefore writing code, read the resource shipsmall://template/conventions for this template's conventions.",
+    },
+  ],
+}
       } catch (error) {
         console.error("Failed to create app row, rolling back repo:", error)
         try {
@@ -60,5 +98,7 @@ export function registerMcpTools(server: McpServer) {
         throw error
       }
     }
+
+
   )
 }

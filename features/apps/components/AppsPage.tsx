@@ -1,5 +1,7 @@
 "use client"
 
+import { useState } from "react"
+import { toast } from "sonner"
 import {
   Clock,
   GitBranch,
@@ -7,14 +9,25 @@ import {
   Globe,
   Rocket,
   CircleAlert,
+  MoreHorizontal,
+  Trash2,
+  Pencil,
 } from "lucide-react"
 
-import { useApps } from "@/features/apps/hooks/use-apps"
+import { useApps, useDeleteApp } from "@/features/apps/hooks/use-apps"
+import { ConfirmAlert } from "@/components/confirm-alert"
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Card } from "@/components/ui/card"
 import { Skeleton } from "@/components/ui/skeleton"
 import { cn } from "@/lib/utils"
+import { AppsForm } from "./AppsForm"
 
 type AppItem = NonNullable<ReturnType<typeof useApps>["data"]>[number]
 
@@ -62,7 +75,19 @@ function MetaRow({
 }
 
 function AppCard({ app }: { app: AppItem }) {
+  const [deleteOpen, setDeleteOpen] = useState(false)
+  const [editOpen, setEditOpen] = useState(false)
+  const deleteApp = useDeleteApp()
   const deployedAt = app.lastDeployedAt ? new Date(app.lastDeployedAt) : null
+
+  async function handleDelete() {
+    try {
+      await deleteApp.mutateAsync(app.id)
+      toast.success(`"${app.name}" deleted`)
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Failed to delete app")
+    }
+  }
 
   return (
     <Card className="gap-0 overflow-hidden rounded-lg border-border bg-card py-0 shadow-xs">
@@ -71,6 +96,7 @@ function AppCard({ app }: { app: AppItem }) {
           <h2 className="min-w-0 truncate text-base font-semibold tracking-tight">
             {app.name}
           </h2>
+          <div className="flex shrink-0 items-center gap-1">
           <Badge
             variant="outline"
             className={cn(
@@ -81,6 +107,24 @@ function AppCard({ app }: { app: AppItem }) {
             <span aria-hidden="true" className="size-1.5 rounded-full bg-current" />
             {app.status}
           </Badge>
+          <DropdownMenu>
+            <DropdownMenuTrigger
+              render={<Button variant="ghost" size="icon" className="size-7" aria-label={`Actions for ${app.name}`} disabled={deleteApp.isPending} />}
+            >
+              <MoreHorizontal className="size-4" />
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end">
+              <DropdownMenuItem onClick={() => setEditOpen(true)}>
+                <Pencil className="size-4" />
+                Edit
+              </DropdownMenuItem>
+              <DropdownMenuItem variant="destructive" onClick={() => setDeleteOpen(true)}>
+                <Trash2 className="size-4" />
+                Delete
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
+          </div>
         </div>
         <p className="truncate font-mono text-xs text-muted-foreground">{app.slug}</p>
       </div>
@@ -134,6 +178,16 @@ function AppCard({ app }: { app: AppItem }) {
           <span>Not deployed yet</span>
         )}
       </div>
+      <ConfirmAlert
+        open={deleteOpen}
+        onOpenChange={setDeleteOpen}
+        title="Delete this app?"
+        description={`"${app.name}" will be permanently removed from your apps. This cannot be undone.`}
+        confirmLabel="Delete"
+        variant="destructive"
+        onConfirm={handleDelete}
+      />
+      {editOpen && <AppsForm app={app} onOpenChange={setEditOpen} />}
     </Card>
   )
 }

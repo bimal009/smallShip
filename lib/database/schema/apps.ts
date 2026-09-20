@@ -7,7 +7,7 @@ import {
   uuid,
   uniqueIndex,
 } from "drizzle-orm/pg-core";
-import { createInsertSchema } from "drizzle-orm/zod";
+import { createInsertSchema, createUpdateSchema } from "drizzle-orm/zod";
 import { z } from "zod";
 
 import { user } from "./user";
@@ -109,3 +109,37 @@ export const appsInsertSchema = createInsertSchema(apps, {
   .strict();
 
 export type CreateAppInput = z.infer<typeof appsInsertSchema>;
+
+export const appsUpdateSchema = createUpdateSchema(apps, {
+  name: (schema) =>
+    schema
+      .trim()
+      .min(1, "App name is required")
+      .max(100, "App name must be at most 100 characters"),
+
+} ) .omit({
+    id: true,
+
+    ownerId: true,
+
+    hostId: true,
+
+    slug: true,
+
+    githubInstallationId: true,
+    githubBranch: true,
+    githubRepoFullName: true,
+    githubRepoId: true,
+
+    status: true,
+    containerId: true,
+    port: true,
+    lastDeployedAt: true,
+    lastActiveAt: true,
+    customDomain:true,
+    rootDir:true,
+
+    createdAt: true,
+    updatedAt: true,
+  })
+  .strict();
