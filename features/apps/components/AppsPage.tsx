@@ -28,14 +28,17 @@ import { Card } from "@/components/ui/card"
 import { Skeleton } from "@/components/ui/skeleton"
 import { cn } from "@/lib/utils"
 import { AppsForm } from "./AppsForm"
+import type { AppOutput } from "@/lib/database/schema/apps"
 
-type AppItem = NonNullable<ReturnType<typeof useApps>["data"]>[number]
 
 const STATUS_STYLES: Record<string, string> = {
-  running: "border-chart-2/25 bg-chart-2/10 text-chart-2",
+  running: "border-transparent bg-primary/10 text-primary",
+  creating: "border-transparent bg-primary/10 text-primary",
+  building: "border-transparent bg-primary/10 text-primary",
   failed: "border-destructive/25 bg-destructive/10 text-destructive",
 }
 const STATUS_FALLBACK = "border-border bg-muted text-muted-foreground"
+const CARD = "gap-0 overflow-hidden rounded-3xl border border-border/60 bg-card py-0 shadow-sm"
 
 const RELATIVE_UNITS: [Intl.RelativeTimeFormatUnit, number][] = [
   ["year", 31_536_000_000],
@@ -58,23 +61,25 @@ function MetaRow({
   label,
   icon,
   children,
+  className,
 }: {
   label: string
   icon: React.ReactNode
   children: React.ReactNode
+  className?: string
 }) {
   return (
-    <div className="flex min-w-0 items-center gap-2.5">
-      <dt className="sr-only">{label}</dt>
-      <span aria-hidden="true" className="shrink-0 text-muted-foreground">
-        {icon}
-      </span>
-      <dd className="min-w-0 flex-1 truncate font-mono text-[13px]">{children}</dd>
+    <div className={cn("min-w-0 space-y-1.5", className)}>
+      <dt className="flex items-center gap-1.5 text-xs text-muted-foreground">
+        <span aria-hidden="true">{icon}</span>
+        {label}
+      </dt>
+      <dd className="min-w-0 break-all font-mono text-xs leading-5">{children}</dd>
     </div>
   )
 }
 
-function AppCard({ app }: { app: AppItem }) {
+function AppCard({ app }: { app: AppOutput }) {
   const [deleteOpen, setDeleteOpen] = useState(false)
   const [editOpen, setEditOpen] = useState(false)
   const deleteApp = useDeleteApp()
@@ -90,17 +95,23 @@ function AppCard({ app }: { app: AppItem }) {
   }
 
   return (
-    <Card className="gap-0 overflow-hidden rounded-lg border-border bg-card py-0 shadow-xs">
+    <Card className={CARD}>
       <div className="space-y-1 px-5 pb-4 pt-5">
         <div className="flex items-start justify-between gap-3">
-          <h2 className="min-w-0 truncate text-base font-semibold tracking-tight">
-            {app.name}
-          </h2>
+          <div className="flex min-w-0 items-center gap-3">
+            <span className="grid size-10 shrink-0 place-items-center rounded-xl bg-muted">
+              <Globe className="size-4 text-muted-foreground" aria-hidden="true" />
+            </span>
+            <div className="min-w-0">
+              <h2 title={app.name} className="truncate text-sm font-semibold tracking-tight">{app.name}</h2>
+              <p title={app.slug} className="mt-1 truncate text-xs text-muted-foreground">{app.slug}</p>
+            </div>
+          </div>
           <div className="flex shrink-0 items-center gap-1">
           <Badge
             variant="outline"
             className={cn(
-              "shrink-0 gap-1.5 capitalize",
+              "shrink-0 gap-1.5 rounded-full text-[10px] capitalize",
               STATUS_STYLES[app.status] ?? STATUS_FALLBACK,
             )}
           >
@@ -109,7 +120,7 @@ function AppCard({ app }: { app: AppItem }) {
           </Badge>
           <DropdownMenu>
             <DropdownMenuTrigger
-              render={<Button variant="ghost" size="icon" className="size-7" aria-label={`Actions for ${app.name}`} disabled={deleteApp.isPending} />}
+              render={<Button variant="ghost" size="icon" className="size-7 rounded-full" aria-label={`Actions for ${app.name}`} disabled={deleteApp.isPending} />}
             >
               <MoreHorizontal className="size-4" />
             </DropdownMenuTrigger>
@@ -126,11 +137,10 @@ function AppCard({ app }: { app: AppItem }) {
           </DropdownMenu>
           </div>
         </div>
-        <p className="truncate font-mono text-xs text-muted-foreground">{app.slug}</p>
       </div>
 
-      <dl className="space-y-2.5 px-5 pb-5">
-        <MetaRow label="Repository" icon={<FolderGit2 size={16} />}>
+      <dl className="mx-5 mb-5 grid grid-cols-2 gap-x-4 gap-y-4 rounded-2xl bg-muted/50 p-4">
+        <MetaRow className="col-span-2" label="Repository" icon={<FolderGit2 size={16} />}>
           <a
             href={`https://github.com/${app.githubRepoFullName}`}
             target="_blank"
@@ -146,8 +156,8 @@ function AppCard({ app }: { app: AppItem }) {
           <span title={app.githubBranch}>{app.githubBranch}</span>
         </MetaRow>
 
-        {app.customDomain && (
-          <MetaRow label="Domain" icon={<Globe size={16} />}>
+          <MetaRow className="col-span-2" label="Domain" icon={<Globe size={16} />}>
+            {app.customDomain ? (
             <a
               href={`https://${app.customDomain}`}
               target="_blank"
@@ -157,11 +167,11 @@ function AppCard({ app }: { app: AppItem }) {
             >
               {app.customDomain}
             </a>
+            ) : "Not configured"}
           </MetaRow>
-        )}
       </dl>
 
-      <div className="mt-auto flex items-center gap-2 border-t bg-muted/40 px-5 py-3 text-xs text-muted-foreground">
+      <div className="mt-auto flex flex-wrap items-center gap-x-2 gap-y-2 border-t border-border/60 px-5 py-4 text-xs text-muted-foreground">
         <Clock size={14} aria-hidden="true" />
         {deployedAt ? (
           <span>
@@ -177,6 +187,9 @@ function AppCard({ app }: { app: AppItem }) {
         ) : (
           <span>Not deployed yet</span>
         )}
+        <span className="w-full">
+          Last active: {app.lastActiveAt ? formatRelative(new Date(app.lastActiveAt)) : "No activity yet"}
+        </span>
       </div>
       <ConfirmAlert
         open={deleteOpen}
@@ -194,7 +207,7 @@ function AppCard({ app }: { app: AppItem }) {
 
 function AppCardSkeleton() {
   return (
-    <Card className="gap-0 overflow-hidden rounded-lg py-0 shadow-xs">
+    <Card className={CARD}>
       <div className="space-y-2 px-5 pb-4 pt-5">
         <div className="flex items-start justify-between gap-3">
           <Skeleton className="h-5 w-32" />
@@ -202,9 +215,8 @@ function AppCardSkeleton() {
         </div>
         <Skeleton className="h-3.5 w-24" />
       </div>
-      <div className="space-y-3 px-5 pb-5">
-        <Skeleton className="h-4 w-3/4" />
-        <Skeleton className="h-4 w-1/3" />
+      <div className="mx-5 mb-5 grid grid-cols-2 gap-4 rounded-2xl bg-muted/50 p-4">
+        {[0, 1, 2].map((i) => <Skeleton key={i} className="h-10 w-full" />)}
       </div>
       <div className="border-t bg-muted/40 px-5 py-3">
         <Skeleton className="h-3.5 w-28" />
@@ -213,7 +225,7 @@ function AppCardSkeleton() {
   )
 }
 
-const GRID = "grid gap-4 sm:grid-cols-2 xl:grid-cols-3"
+const GRID = "grid gap-5 md:grid-cols-2 2xl:grid-cols-3"
 
 export function AppsList() {
   const { data: apps = [], isPending, isError, error, refetch } = useApps()

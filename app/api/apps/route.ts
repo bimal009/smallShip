@@ -1,10 +1,12 @@
 import { auth } from "@/auth"
 import { db } from "@/lib/database"
-import { apps, appsInsertSchema } from "@/lib/database/schema"
+import { apps, appsInsertSchema, appSelectSchema } from "@/lib/database/schema"
 import { headers } from "next/headers"
 import { NextRequest, NextResponse } from "next/server"
 import { slugify } from "@/lib/slugify"
 import { github } from "@/lib/github"
+
+import { desc, eq } from "drizzle-orm"
 
 export async function GET() {
   const session = await auth.api.getSession({ headers: await headers() })
@@ -14,13 +16,28 @@ export async function GET() {
   }
 
   try {
-    const userApps = await db.query.apps.findMany({
-      where: { ownerId: session.user.id },
-      orderBy: (apps, { desc }) => [desc(apps.createdAt)],
-    })
+    const userApps = await db
+      .select({
+        id: apps.id,
+        ownerId: apps.ownerId,
+        githubRepoId: apps.githubRepoId,
+        name: apps.name,
+        slug: apps.slug,
+        githubRepoFullName: apps.githubRepoFullName,
+        githubBranch: apps.githubBranch,
+        status: apps.status,
+        lastDeployedAt: apps.lastDeployedAt,
+        lastActiveAt: apps.lastActiveAt,
+        customDomain: apps.customDomain,
+        createdAt: apps.createdAt,
+        updatedAt: apps.updatedAt,
+      })
+      .from(apps)
+      .where(eq(apps.ownerId, session.user.id))
+      .orderBy(desc(apps.createdAt))
 
     return NextResponse.json(
-      { apps: userApps },
+      { apps: appSelectSchema.array().parse(userApps) },
       { headers: { "Cache-Control": "private, no-store" } }
     )
   } catch (error) {
@@ -87,7 +104,7 @@ export async function POST(req: NextRequest) {
       })
       .returning()
 
-    return NextResponse.json({ app }, { status: 201 })
+    return NextResponse.json({ app: appSelectSchema.parse(app) }, { status: 201 })
   } catch (error) {
     console.error("Failed to create app row, rolling back repo:", error)
     try {

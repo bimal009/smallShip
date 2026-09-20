@@ -1,33 +1,54 @@
 import Docker from "dockerode"
 import { cloneRepo } from "./clone"
 
+
 const docker = new Docker()
-const SANDBOX_ROOT = process.env.SANDBOX_ROOT ?? "/var/shipsmall/sandboxes"
+export const SANDBOX_ROOT = process.env.SANDBOX_ROOT ?? "/var/shipsmall/sandboxes"
 
-export async function initSandbox(appId: string, repoFullName: string, branch: string) {
-  const workspacePath = `${SANDBOX_ROOT}/${appId}`
-  await cloneRepo(appId, repoFullName, branch,SANDBOX_ROOT)
+export const workSpacePath=(appId:string)=> `${SANDBOX_ROOT}/${appId}`
 
-  const container = await docker.createContainer({
-    Image: "node:24-slim",
-    name: `sandbox-${appId}`,
-    Cmd: ["sleep", "infinity"],
-    User: "1000:1000",
-    HostConfig: {
-      // Runtime: "runsc", enable in prod
-      SecurityOpt: ["no-new-privileges"],
-      CapDrop: ["ALL"],
-      Memory: 512 * 1024 * 1024,
-      CpuQuota: 100000,
-      PidsLimit: 128,
-      Binds: [`${workspacePath}:/workspace`],
-      NetworkMode: "none",
-    },
-    WorkingDir: "/workspace",
-  })
+interface SandboxResult {
+  containerId: string
+  workspacePath: string
+}
 
-  await container.start()
-  return container.id
+export async function initSandbox(
+  appId: string,
+  repoFullName: string,
+  branch: string
+): Promise<SandboxResult> {
+  const workspacePath = workSpacePath(appId)
+
+  try {
+    await cloneRepo(appId, repoFullName, branch, SANDBOX_ROOT)
+  } catch (error) {
+    throw new Error(`Failed to clone repo for app ${appId}: ${(error as Error).message}`)
+  }
+
+  try {
+    const container = await docker.createContainer({
+      Image: "node:24-slim",
+      name: `sandbox-${appId}`,
+      Cmd: ["sleep", "infinity"],
+      User: "1000:1000",
+      HostConfig: {
+        // Runtime: "runsc", // enable in prod
+        SecurityOpt: ["no-new-privileges"],
+        CapDrop: ["ALL"],
+        Memory: 512 * 1024 * 1024,
+        CpuQuota: 100000,
+        PidsLimit: 128,
+        Binds: [`${workspacePath}:/workspace`],
+        NetworkMode: "none",
+      },
+      WorkingDir: "/workspace",
+    })
+
+    await container.start()
+    return { containerId: container.id, workspacePath }
+  } catch (error) {
+    throw new Error(`Failed to start container for app ${appId}: ${(error as Error).message}`)
+  }
 }
 
 export async function execInSandbox(containerId: string, cmd: string[]) {

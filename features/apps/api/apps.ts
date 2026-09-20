@@ -1,13 +1,12 @@
-import type { apps, appsUpdateSchema } from "@/lib/database/schema/apps"
+import type { AppOutput, appsUpdateSchema } from "@/lib/database/schema/apps"
 import type { z } from "zod"
 
 export type UpdateAppInput = z.infer<typeof appsUpdateSchema>
 
-export type AppRecord = typeof apps.$inferSelect
 
 
 
-export async function getApps(): Promise<AppRecord[]> {
+export async function getApps(): Promise<AppOutput[]> {
   const response = await fetch("/api/apps")
 
   if (!response.ok) {
@@ -17,7 +16,7 @@ export async function getApps(): Promise<AppRecord[]> {
     )
   }
 
-  const data: { apps: AppRecord[] } = await response.json()
+  const data: { apps: AppOutput[] } = await response.json()
   return data.apps
 }
 
@@ -34,7 +33,7 @@ export async function deleteApp(appId: string): Promise<void> {
   }
 }
 
-export async function updateApp(appId: string, input: UpdateAppInput): Promise<AppRecord> {
+export async function updateApp(appId: string, input: UpdateAppInput): Promise<AppOutput> {
   const response = await fetch(`/api/apps/${encodeURIComponent(appId)}`, {
     method: "PATCH",
     headers: { "Content-Type": "application/json" },
@@ -46,6 +45,6 @@ export async function updateApp(appId: string, input: UpdateAppInput): Promise<A
     throw new Error(typeof data?.error === "string" ? data.error : "Failed to update app")
   }
 
-  const data: { app: AppRecord } = await response.json()
+  const data: { app: AppOutput } = await response.json()
   return data.app
 }

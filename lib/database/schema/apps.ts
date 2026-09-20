@@ -7,7 +7,7 @@ import {
   uuid,
   uniqueIndex,
 } from "drizzle-orm/pg-core";
-import { createInsertSchema, createUpdateSchema } from "drizzle-orm/zod";
+import { createInsertSchema, createSelectSchema, createUpdateSchema } from "drizzle-orm/zod";
 import { z } from "zod";
 
 import { user } from "./user";
@@ -143,3 +143,13 @@ export const appsUpdateSchema = createUpdateSchema(apps, {
     updatedAt: true,
   })
   .strict();
+
+export const appSelectSchema = createSelectSchema(apps).omit({
+  hostId: true,
+  githubInstallationId: true,
+  containerId: true,
+  rootDir: true,
+  port: true,
+})
+
+export type AppOutput = z.infer<typeof appSelectSchema>

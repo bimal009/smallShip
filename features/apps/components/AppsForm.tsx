@@ -4,8 +4,8 @@ import { useId } from "react"
 import { useForm } from "react-hook-form"
 import { zodResolver } from "@hookform/resolvers/zod"
 import { toast } from "sonner"
-import { appsUpdateSchema } from "@/lib/database/schema/apps"
-import {   AppRecord, type UpdateAppInput } from "../api/apps"
+import { appsUpdateSchema, type AppOutput } from "@/lib/database/schema/apps"
+import type { UpdateAppInput } from "../api/apps"
 import { useUpdateApp } from "../hooks/use-apps"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -22,7 +22,7 @@ export function AppsForm({
   app,
   onOpenChange,
 }: {
-  app: AppRecord
+  app: AppOutput
   onOpenChange: (open: boolean) => void
 }) {
   const nameId = useId()

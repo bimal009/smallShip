@@ -1,6 +1,6 @@
 import { auth } from "@/auth"
 import { db } from "@/lib/database"
-import { apps, appsUpdateSchema } from "@/lib/database/schema"
+import { apps, appsUpdateSchema, appSelectSchema } from "@/lib/database/schema"
 import { github } from "@/lib/github"
 import { eq, and } from "drizzle-orm"
 import { headers } from "next/headers"
@@ -99,7 +99,7 @@ export async function PATCH(
       .where(and(eq(apps.id, appId), eq(apps.ownerId, session.user.id)))
       .returning()
 
-    return NextResponse.json({ app: updated })
+    return NextResponse.json({ app: appSelectSchema.parse(updated) })
   } catch (error) {
     console.error("Failed to update app:", error)
     return NextResponse.json(

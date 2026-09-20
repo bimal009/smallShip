@@ -1,22 +1,47 @@
-import { db } from "@/lib/database"
-import { apps } from "@/lib/database/schema"
 import { McpServer } from "@modelcontextprotocol/server"
-import { z } from "zod"
-import { and, eq } from "drizzle-orm"
-import { deleteFile, getFile, listFiles, upsertFile } from "@/lib/github/files"
+
+import { deleteFile, readFile, listFiles, writeFile, editFile } from "@/core/fs"
+import { readFileSchema, writeFileSchema, deleteFileSchema, listFilesSchema, editFileSchema } from "@/core/schemas"
 import { getOwnedApp } from "./core/apps"
 
 export function registerFileTools(server: McpServer) {
+  server.registerTool(
+    "edit-file",
+    {
+      description: "Replace a unique string in a file in an app's sandbox",
+      inputSchema: editFileSchema,
+    },
+    async ({ appId, path, oldStr, newStr }, extra) => {
+      const userId = extra.http?.authInfo?.clientId
+      if (!userId) throw new Error("Unauthorized")
+
+      const app = await getOwnedApp(appId, userId)
+      if (!app) {
+        return {
+          isError: true,
+          content: [{ type: "text", text: "App not found" }],
+        }
+      }
+
+      try {
+        await editFile(appId, path, oldStr, newStr)
+        return { content: [{ type: "text", text: `Edited ${path}` }] }
+      } catch (error) {
+        console.error("Failed to edit file:", error)
+        return {
+          isError: true,
+          content: [{ type: "text", text: `Failed to edit ${path}` }],
+        }
+      }
+    }
+  )
 
 
   server.registerTool(
     "get-file",
     {
-      description: "Read a file's contents from an app's repo",
-      inputSchema: z.object({
-        appId: z.uuid(),
-        path: z.string().min(1),
-      }).strict(),
+      description: "Read a file's contents from an app's sandbox",
+      inputSchema: readFileSchema,
       annotations: { readOnlyHint: true },
     },
     async ({ appId, path }, extra) => {
@@ -32,8 +57,8 @@ export function registerFileTools(server: McpServer) {
       }
 
       try {
-        const file = await getFile(app.githubRepoFullName, path, app.githubBranch)
-        return { content: [{ type: "text", text: file.content }] }
+        const file = await readFile(appId, path)
+        return { content: [{ type: "text", text: file }] }
       } catch (error) {
         console.error("Failed to read file:", error)
         return {
@@ -47,11 +72,11 @@ export function registerFileTools(server: McpServer) {
   server.registerTool(
     "list-files",
     {
-      description: "List all files in an app's repo",
-      inputSchema: z.object({ appId: z.uuid() }).strict(),
+      description: "List directory entries in an app's sandbox",
+      inputSchema: listFilesSchema,
       annotations: { readOnlyHint: true },
     },
-    async ({ appId }, extra) => {
+    async ({ appId, path }, extra) => {
       const userId = extra.http?.authInfo?.clientId
       if (!userId) throw new Error("Unauthorized")
 
@@ -64,7 +89,7 @@ export function registerFileTools(server: McpServer) {
       }
 
       try {
-        const files = await listFiles(app.githubRepoFullName, app.githubBranch)
+        const files = await listFiles(appId, path)
         return { content: [{ type: "text", text: JSON.stringify({ files }) }] }
       } catch (error) {
         console.error("Failed to list files:", error)
@@ -79,15 +104,10 @@ export function registerFileTools(server: McpServer) {
   server.registerTool(
     "add-or-update-file",
     {
-      description: "Create or update a file in an app's repo",
-      inputSchema: z.object({
-        appId: z.uuid(),
-        path: z.string().min(1),
-        content: z.string(),
-        message: z.string().optional(),
-      }).strict(),
+      description: "Create or update a file in an app's sandbox",
+      inputSchema: writeFileSchema,
     },
-    async ({ appId, path, content, message }, extra) => {
+    async ({ appId, path, content }, extra) => {
       const userId = extra.http?.authInfo?.clientId
       if (!userId) throw new Error("Unauthorized")
 
@@ -100,16 +120,10 @@ export function registerFileTools(server: McpServer) {
       }
 
       try {
-        const result = await upsertFile(
-          app.githubRepoFullName,
-          path,
-          content,
-          app.githubBranch,
-          message
-        )
+        await writeFile(appId, path, content)
         return {
           content: [
-            { type: "text", text: `Updated ${path}, commit ${result.commit.sha}` },
+            { type: "text", text: `Updated ${path}` },
           ],
         }
       } catch (error) {
@@ -125,14 +139,10 @@ export function registerFileTools(server: McpServer) {
   server.registerTool(
     "delete-file",
     {
-      description: "Delete a file from an app's repo",
-      inputSchema: z.object({
-        appId: z.uuid(),
-        path: z.string().min(1),
-        message: z.string().optional(),
-      }).strict(),
+      description: "Delete a file from an app's sandbox",
+      inputSchema: deleteFileSchema,
     },
-    async ({ appId, path, message }, extra) => {
+    async ({ appId, path }, extra) => {
       const userId = extra.http?.authInfo?.clientId
       if (!userId) throw new Error("Unauthorized")
 
@@ -145,7 +155,7 @@ export function registerFileTools(server: McpServer) {
       }
 
       try {
-        await deleteFile(app.githubRepoFullName, path, app.githubBranch, message)
+        await deleteFile(appId, path)
         return { content: [{ type: "text", text: `Deleted ${path}` }] }
       } catch (error) {
         console.error("Failed to delete file:", error)
