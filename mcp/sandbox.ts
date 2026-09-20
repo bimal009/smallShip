@@ -87,7 +87,8 @@ export function registerSandboxTools(server: McpServer) {
       }
 
       try {
-        await db.update(apps).set({ containerId, rootDir: workspacePath }).where(eq(apps.id, appId))
+        await db.update(apps).set({ containerId, rootDir: workspacePath })
+          .where(and(eq(apps.id, appId), eq(apps.ownerId, userId)))
       } catch (error) {
         console.error("Failed to persist sandbox state:", error)
         return {
