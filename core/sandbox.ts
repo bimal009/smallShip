@@ -5,6 +5,9 @@ import { cloneRepo } from "./clone"
 import { buildWorkspacePath, sandboxWorkspacePath } from "./constants"
 
 import getPort from "get-port"
+import { eq } from "drizzle-orm"
+import { db } from "@/lib/database"
+import { apps } from "@/lib/database/schema"
 
 const docker = new Docker()
 interface SandboxResult {
@@ -47,6 +50,8 @@ export async function initSandbox(
   WorkingDir: "/workspace",
 })
 
+    stage = "saving container ID"
+    await db.update(apps).set({ sandboxContainerId: container.id }).where(eq(apps.id, appId))
     stage = "starting container"
     await container.start()
     return { containerId: container.id, workspacePath }
@@ -62,11 +67,36 @@ export async function initSandbox(
 
 
 export async function destroySandbox(appId: string) {
-  await destroyWorkspaceContainer(appId, "sandbox")
+  const [app] = await db.select({ containerId: apps.sandboxContainerId })
+    .from(apps).where(eq(apps.id, appId)).limit(1)
+
+  if (app?.containerId) {
+    const container = docker.getContainer(app.containerId)
+    try {
+      await container.stop()
+    } catch (err: unknown) {
+      if (typeof err !== "object" || err === null || !("statusCode" in err) ||
+        (err.statusCode !== 304 && err.statusCode !== 404)) throw err
+    }
+
+    try {
+      await container.remove()
+    } catch (err: unknown) {
+      if (typeof err !== "object" || err === null || !("statusCode" in err) ||
+        err.statusCode !== 404) throw err
+    }
+
+    await db.update(apps).set({ sandboxContainerId: null }).where(eq(apps.id, appId))
+  }
+
+  await fs.rm(sandboxWorkspacePath(appId), { recursive: true, force: true })
 }
 
 export async function getSandboxContainerId(appId: string): Promise<string | null> {
-  const container = docker.getContainer(`sandbox-${appId}`)
+  const [app] = await db.select({ containerId: apps.sandboxContainerId })
+    .from(apps).where(eq(apps.id, appId)).limit(1)
+  if (!app?.containerId) return null
+  const container = docker.getContainer(app.containerId)
 
   try {
     const info = await container.inspect()
@@ -81,31 +111,31 @@ export async function getSandboxContainerId(appId: string): Promise<string | nul
 }
 
 export async function destroyBuildContainer(appId: string) {
-  await destroyWorkspaceContainer(appId, "build")
-}
+  const [app] = await db.select({ containerId: apps.buildContainerId })
+    .from(apps).where(eq(apps.id, appId)).limit(1)
 
-async function destroyWorkspaceContainer(appId: string, kind: "sandbox" | "build") {
-  const containerName = `${kind}-${appId}`
-  const workspacePath = kind === "sandbox" ? sandboxWorkspacePath(appId) : buildWorkspacePath(appId)
+  if (app?.containerId) {
+    const container = docker.getContainer(app.containerId)
+    try {
+      await container.stop()
+    } catch (err: unknown) {
+      if (typeof err !== "object" || err === null || !("statusCode" in err) ||
+        (err.statusCode !== 304 && err.statusCode !== 404)) throw err
+    }
 
-  const container = docker.getContainer(containerName)
+    try {
+      await container.remove()
+    } catch (err: unknown) {
+      if (typeof err !== "object" || err === null || !("statusCode" in err) ||
+        err.statusCode !== 404) throw err
+    }
 
-  try {
-    await container.stop()
-  } catch (err: unknown) {
-    if (typeof err !== "object" || err === null || !("statusCode" in err) ||
-      (err.statusCode !== 304 && err.statusCode !== 404)) throw err
+    await db.update(apps).set({ buildContainerId: null }).where(eq(apps.id, appId))
   }
 
-  try {
-    await container.remove()
-  } catch (err: unknown) {
-    if (typeof err !== "object" || err === null || !("statusCode" in err) ||
-      err.statusCode !== 404) throw err
-  }
-
-  await fs.rm(workspacePath, { recursive: true, force: true })
+  await fs.rm(buildWorkspacePath(appId), { recursive: true, force: true })
 }
+
 
 export async function execInSandbox(containerId: string, cmd: string[]) {
   const container = docker.getContainer(containerId)
@@ -165,6 +195,7 @@ const container = await docker.createContainer({
   WorkingDir: "/workspace",
 })
 
+    await db.update(apps).set({ buildContainerId: container.id }).where(eq(apps.id, appId))
     await container.start()
     return { containerId: container.id, workspacePath }
   } catch (error) {

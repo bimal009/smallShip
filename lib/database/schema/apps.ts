@@ -47,6 +47,8 @@ export const apps = pgTable(
     status: appStatusEnum("status").default("creating").notNull(),
 
     containerId: text("container_id"),
+    buildContainerId: text("build_container_id"),
+    sandboxContainerId: text("sandbox_container_id"),
     port: integer("port"),
 
     lastDeployedAt: timestamp("last_deployed_at"),
@@ -97,6 +99,8 @@ export const appsInsertSchema = createInsertSchema(apps, {
 
     status: true,
     containerId: true,
+    buildContainerId: true,
+    sandboxContainerId: true,
     port: true,
     lastDeployedAt: true,
     lastActiveAt: true,
@@ -133,6 +137,8 @@ export const appsUpdateSchema = createUpdateSchema(apps, {
 
     status: true,
     containerId: true,
+    buildContainerId: true,
+    sandboxContainerId: true,
     port: true,
     lastDeployedAt: true,
     lastActiveAt: true,
@@ -148,6 +154,8 @@ export const appSelectSchema = createSelectSchema(apps).omit({
   hostId: true,
   githubInstallationId: true,
   containerId: true,
+    buildContainerId: true,
+    sandboxContainerId: true,
   rootDir: true,
   port: true,
 })
