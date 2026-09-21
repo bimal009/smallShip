@@ -1,5 +1,5 @@
 import { buildImage } from "./build"
-import { installAndBuildPnpm } from "./pnpm"
+import { installPnpm, buildPnpm } from "./pnpm"
 import { createBuildContainer, destroyBuildContainer, runContainer } from "./sandbox"
 
 export async function buildApp(
@@ -13,7 +13,11 @@ export async function buildApp(
 
   onLog("Installing and building...")
   try {
-    const { exitCode, output } = await installAndBuildPnpm(containerId)
+    const installResult = await installPnpm(containerId)
+    onLog(installResult.output)
+    if (installResult.exitCode !== 0) throw new Error("Dependency installation failed")
+
+    const { exitCode, output } = await buildPnpm(containerId)
     onLog(output)
     if (exitCode !== 0) throw new Error("Build failed")
 
