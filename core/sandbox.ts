@@ -43,7 +43,6 @@ export async function initSandbox(
     CpuQuota: 100000,
     PidsLimit: 128,
     Binds: [`${workspacePath}:/workspace`],
-    // NetworkMode omitted — network stays open for pnpm install
   },
   WorkingDir: "/workspace",
 })
