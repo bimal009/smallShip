@@ -38,9 +38,9 @@ export async function initSandbox(
         // Runtime: "runsc", // enable in prod
         SecurityOpt: ["no-new-privileges"],
         CapDrop: ["ALL"],
-        Memory: 1024 * 1024 * 1024,
+    Memory: 1024 * 1024 * 1024,
         CpuQuota: 100000,
-        PidsLimit: 128,
+        PidsLimit: 256,
         Binds: [`${workspacePath}:/workspace`],
       },
       WorkingDir: "/workspace",

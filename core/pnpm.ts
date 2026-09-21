@@ -26,6 +26,7 @@ export const installPnpm = async (
   const stdout = new Writable({
     write(chunk, _enc, cb) {
       output += chunk.toString();
+      console.log(output)
       cb();
     },
   });
