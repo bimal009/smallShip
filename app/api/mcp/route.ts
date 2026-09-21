@@ -11,6 +11,7 @@ import { conventions, registerConventionsResource } from "@/mcp/resources/conven
 import { verifyApiKeyToken } from "@/mcp/core/auth"
 
 export const runtime = "nodejs"
+export const maxDuration = 600
 
 const handler = createMcpHandler((server) => {
   registerMcpTools(server)
