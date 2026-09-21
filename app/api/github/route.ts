@@ -17,7 +17,7 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    const buildPath = await cloneRepo(appId, fullname);
+    const buildPath = await cloneRepo(appId, fullname, false);
 
     if (!buildPath) {
       return NextResponse.json(

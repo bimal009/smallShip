@@ -1,11 +1,8 @@
 import { z } from "zod"
 import fs from "fs/promises"
 import path from "path"
-import { and, eq } from "drizzle-orm"
 import { destroySandbox, initSandbox } from "@/core/sandbox"
 import { getOwnedApp } from "./core/apps"
-import { db } from "@/lib/database"
-import { apps } from "@/lib/database/schema"
 import { McpServer } from "@modelcontextprotocol/server"
 
 
@@ -38,16 +35,6 @@ export function registerSandboxTools(server: McpServer) {
         }
       }
 
-      try {
-        await db.update(apps).set({ rootDir: "/" })
-          .where(and(eq(apps.id, appId), eq(apps.ownerId, userId)))
-      } catch (error) {
-        console.error("Failed to clear sandbox state:", error)
-        return {
-          isError: true,
-          content: [{ type: "text", text: "Sandbox destroyed but failed to clear saved state" }],
-        }
-      }
 
       return { content: [{ type: "text", text: JSON.stringify({ appId, success: true }) }] }
     }
@@ -86,16 +73,6 @@ export function registerSandboxTools(server: McpServer) {
         }
       }
 
-      try {
-        await db.update(apps).set({ rootDir: workspacePath })
-          .where(and(eq(apps.id, appId), eq(apps.ownerId, userId)))
-      } catch (error) {
-        console.error("Failed to persist sandbox state:", error)
-        return {
-          isError: true,
-          content: [{ type: "text", text: "Sandbox created but failed to save state" }],
-        }
-      }
 
       const conventions = await fs
         .readFile(path.join(workspacePath, "conventions.md"), "utf-8")

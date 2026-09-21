@@ -5,7 +5,7 @@ import { cloneRepo } from "./clone"
 import { buildWorkspacePath, sandboxWorkspacePath } from "./constants"
 
 import getPort from "get-port"
-import { eq } from "drizzle-orm"
+import { and, eq, isNull } from "drizzle-orm"
 import { db } from "@/lib/database"
 import { apps } from "@/lib/database/schema"
 
@@ -21,121 +21,172 @@ export async function initSandbox(
   branch: string
 ): Promise<SandboxResult> {
   const workspacePath = sandboxWorkspacePath(appId)
-  const logPrefix = `[sandbox:${appId}]`
-  const startedAt = Date.now()
+  const [app] = await db.select({ containerId: apps.sandboxContainerId })
+    .from(apps).where(eq(apps.id, appId)).limit(1)
+  if (!app) throw new Error("App not found")
+  if (app.containerId) throw new Error("An existing sandbox must be destroyed before creating another")
 
+  let container: Docker.Container | undefined
+  let cloningStarted = false
   try {
-    await cloneRepo(appId, repoFullName,true, branch)
-  } catch (error) {
-    console.error(`${logPrefix} Repository clone failed`, { elapsedMs: Date.now() - startedAt })
-    throw new Error(`Failed to clone repo for app ${appId}: ${(error as Error).message}`)
-  }
+    container = await docker.createContainer({
+      Image: "shipsmall-sandbox-base:latest",
+      name: `sandbox-${appId}`,
+      Cmd: ["sleep", "infinity"],
+      User: "1000:1000",
+      HostConfig: {
+        // Runtime: "runsc", // enable in prod
+        SecurityOpt: ["no-new-privileges"],
+        CapDrop: ["ALL"],
+        Memory: 1024 * 1024 * 1024,
+        CpuQuota: 100000,
+        PidsLimit: 128,
+        Binds: [`${workspacePath}:/workspace`],
+      },
+      WorkingDir: "/workspace",
+    })
+    const [saved] = await db.update(apps).set({ sandboxContainerId: container.id, rootDir: workspacePath })
+      .where(and(eq(apps.id, appId), isNull(apps.sandboxContainerId))).returning({ id: apps.id })
+    if (!saved) throw new Error("App state changed while creating the sandbox")
 
-  let stage = "creating container"
-  try {
-  const container = await docker.createContainer({
-  Image: "shipsmall-sandbox-base:latest",
-  name: `sandbox-${appId}`,
-  Cmd: ["sleep", "infinity"],
-  User: "1000:1000",
-  HostConfig: {
-    // Runtime: "runsc", // enable in prod
-    SecurityOpt: ["no-new-privileges"],
-    CapDrop: ["ALL"],
-  Memory: 1024 * 1024 * 1024,
-    CpuQuota: 100000,
-    PidsLimit: 128,
-    Binds: [`${workspacePath}:/workspace`],
-  },
-  WorkingDir: "/workspace",
-})
-
-    stage = "saving container ID"
-    await db.update(apps).set({ sandboxContainerId: container.id }).where(eq(apps.id, appId))
-    stage = "starting container"
+    cloningStarted = true
+    await cloneRepo(appId, repoFullName, true, branch)
     await container.start()
     return { containerId: container.id, workspacePath }
   } catch (error) {
-    console.error(`${logPrefix} Failed while ${stage}`, {
-      elapsedMs: Date.now() - startedAt,
-      message: error instanceof Error ? error.message : "Unknown Docker error",
-    })
-    throw new Error(`Failed to start container for app ${appId}: ${(error as Error).message}`)
+    if (container) {
+      try {
+        try {
+          await container.remove({ force: true })
+        } catch (removeError: unknown) {
+          if (typeof removeError !== "object" || removeError === null || !("statusCode" in removeError) ||
+            removeError.statusCode !== 404) throw removeError
+        }
+        if (cloningStarted) await fs.rm(workspacePath, { recursive: true, force: true })
+        await db.update(apps).set({ sandboxContainerId: null, rootDir: "/" })
+          .where(and(eq(apps.id, appId), eq(apps.sandboxContainerId, container.id)))
+      } catch (cleanupError) {
+        throw new AggregateError([error, cleanupError], "Failed to create and clean up the sandbox; cleanup must be retried")
+      }
+    }
+    throw error
   }
 }
-
-
 
 export async function destroySandbox(appId: string) {
   const [app] = await db.select({ containerId: apps.sandboxContainerId })
     .from(apps).where(eq(apps.id, appId)).limit(1)
+  if (!app) throw new Error("App not found")
 
-  if (app?.containerId) {
-    const container = docker.getContainer(app.containerId)
+  let containerId = app.containerId
+  if (!containerId) {
+    try {
+      const info = await docker.getContainer(`sandbox-${appId}`).inspect()
+      containerId = info.Id
+    } catch (error: unknown) {
+      if (typeof error !== "object" || error === null || !("statusCode" in error) ||
+        error.statusCode !== 404) throw error
+    }
+    if (containerId) {
+      const [saved] = await db.update(apps).set({ sandboxContainerId: containerId })
+        .where(and(eq(apps.id, appId), isNull(apps.sandboxContainerId))).returning({ id: apps.id })
+      if (!saved) throw new Error("App state changed; retry sandbox cleanup")
+    }
+  }
+
+  if (containerId) {
+    // The old shared field may contain this sandbox ID, but never clear a hosted ID.
+    await db.update(apps).set({ containerId: null })
+      .where(and(eq(apps.id, appId), eq(apps.containerId, containerId)))
+    const container = docker.getContainer(containerId)
     try {
       await container.stop()
-    } catch (err: unknown) {
-      if (typeof err !== "object" || err === null || !("statusCode" in err) ||
-        (err.statusCode !== 304 && err.statusCode !== 404)) throw err
+    } catch (error: unknown) {
+      if (typeof error !== "object" || error === null || !("statusCode" in error) ||
+        (error.statusCode !== 304 && error.statusCode !== 404)) throw error
     }
-
     try {
       await container.remove()
-    } catch (err: unknown) {
-      if (typeof err !== "object" || err === null || !("statusCode" in err) ||
-        err.statusCode !== 404) throw err
+    } catch (error: unknown) {
+      if (typeof error !== "object" || error === null || !("statusCode" in error) ||
+        error.statusCode !== 404) throw error
     }
-
-    await db.update(apps).set({ sandboxContainerId: null }).where(eq(apps.id, appId))
   }
 
   await fs.rm(sandboxWorkspacePath(appId), { recursive: true, force: true })
+  await db.update(apps).set({ sandboxContainerId: null, rootDir: "/" })
+    .where(and(eq(apps.id, appId), containerId ? eq(apps.sandboxContainerId, containerId) : isNull(apps.sandboxContainerId)))
 }
 
 export async function getSandboxContainerId(appId: string): Promise<string | null> {
   const [app] = await db.select({ containerId: apps.sandboxContainerId })
     .from(apps).where(eq(apps.id, appId)).limit(1)
-  if (!app?.containerId) return null
-  const container = docker.getContainer(app.containerId)
+  if (!app) return null
 
+  let info: Docker.ContainerInspectInfo
   try {
-    const info = await container.inspect()
-    if (!info.State.Running) return null
-    return info.Id
-  } catch (err: unknown) {
-    if (typeof err === "object" && err !== null && "statusCode" in err && err.statusCode === 404) {
-      return null
+    info = await docker.getContainer(app.containerId ?? `sandbox-${appId}`).inspect()
+  } catch (error: unknown) {
+    if (typeof error !== "object" || error === null || !("statusCode" in error) ||
+      error.statusCode !== 404) throw error
+    if (app.containerId) {
+      await db.update(apps).set({ sandboxContainerId: null, rootDir: "/" })
+        .where(and(eq(apps.id, appId), eq(apps.sandboxContainerId, app.containerId)))
     }
-    throw err
+    return null
   }
+
+  if (!app.containerId) {
+    const [saved] = await db.update(apps).set({ sandboxContainerId: info.Id, rootDir: sandboxWorkspacePath(appId) })
+      .where(and(eq(apps.id, appId), isNull(apps.sandboxContainerId))).returning({ id: apps.id })
+    if (!saved) throw new Error("App state changed; retry the sandbox operation")
+  }
+  await db.update(apps).set({ containerId: null })
+    .where(and(eq(apps.id, appId), eq(apps.containerId, info.Id)))
+  return info.State.Running ? info.Id : null
 }
 
 export async function destroyBuildContainer(appId: string) {
   const [app] = await db.select({ containerId: apps.buildContainerId })
     .from(apps).where(eq(apps.id, appId)).limit(1)
+  if (!app) throw new Error("App not found")
 
-  if (app?.containerId) {
-    const container = docker.getContainer(app.containerId)
+  let containerId = app.containerId
+  if (!containerId) {
+    try {
+      const info = await docker.getContainer(`build-${appId}`).inspect()
+      containerId = info.Id
+    } catch (error: unknown) {
+      if (typeof error !== "object" || error === null || !("statusCode" in error) ||
+        error.statusCode !== 404) throw error
+    }
+    if (containerId) {
+      const [saved] = await db.update(apps).set({ buildContainerId: containerId })
+        .where(and(eq(apps.id, appId), isNull(apps.buildContainerId))).returning({ id: apps.id })
+      if (!saved) throw new Error("App state changed; retry build cleanup")
+    }
+  }
+
+  if (containerId) {
+    const container = docker.getContainer(containerId)
     try {
       await container.stop()
-    } catch (err: unknown) {
-      if (typeof err !== "object" || err === null || !("statusCode" in err) ||
-        (err.statusCode !== 304 && err.statusCode !== 404)) throw err
+    } catch (error: unknown) {
+      if (typeof error !== "object" || error === null || !("statusCode" in error) ||
+        (error.statusCode !== 304 && error.statusCode !== 404)) throw error
     }
-
     try {
       await container.remove()
-    } catch (err: unknown) {
-      if (typeof err !== "object" || err === null || !("statusCode" in err) ||
-        err.statusCode !== 404) throw err
+    } catch (error: unknown) {
+      if (typeof error !== "object" || error === null || !("statusCode" in error) ||
+        error.statusCode !== 404) throw error
     }
-
-    await db.update(apps).set({ buildContainerId: null }).where(eq(apps.id, appId))
   }
 
   await fs.rm(buildWorkspacePath(appId), { recursive: true, force: true })
+  await db.update(apps).set({ buildContainerId: null })
+    .where(and(eq(apps.id, appId), containerId ? eq(apps.buildContainerId, containerId) : isNull(apps.buildContainerId)))
 }
-
 
 export async function execInSandbox(containerId: string, cmd: string[]) {
   const container = docker.getContainer(containerId)
@@ -150,8 +201,12 @@ export async function execInSandbox(containerId: string, cmd: string[]) {
     let output = ""
     stream.on("data", (chunk) => (output += chunk.toString()))
     stream.on("end", async () => {
-      const { ExitCode } = await exec.inspect()
-      resolve({ output, exitCode: ExitCode ?? 1 })
+      try {
+        const { ExitCode } = await exec.inspect()
+        resolve({ output, exitCode: ExitCode ?? 1 })
+      } catch (error) {
+        reject(error)
+      }
     })
     stream.on("error", reject)
   })
@@ -170,40 +225,57 @@ export async function createBuildContainer(
   branch: string
 ): Promise<BuildContainerResult> {
   const workspacePath = buildWorkspacePath(appId)
+  const [app] = await db.select({ containerId: apps.buildContainerId })
+    .from(apps).where(eq(apps.id, appId)).limit(1)
+  if (!app) throw new Error("App not found")
+  if (app.containerId) throw new Error("An existing build must be destroyed before creating another")
 
+  let container: Docker.Container | undefined
+  let cloningStarted = false
   try {
+    container = await docker.createContainer({
+      Image: "shipsmall-sandbox-base:latest",
+      name: `build-${appId}`,
+      Cmd: ["sleep", "infinity"],
+      User: "1000:1000",
+      HostConfig: {
+        // Runtime: "runsc", // enable in prod
+        SecurityOpt: ["no-new-privileges"],
+        CapDrop: ["ALL"],
+        Memory: 1024 * 1024 * 1024,
+        CpuQuota: 100000,
+        PidsLimit: 128,
+        Binds: [`${workspacePath}:/workspace`],
+      },
+      WorkingDir: "/workspace",
+    })
+    const [saved] = await db.update(apps).set({ buildContainerId: container.id })
+      .where(and(eq(apps.id, appId), isNull(apps.buildContainerId))).returning({ id: apps.id })
+    if (!saved) throw new Error("App state changed while creating the build")
+
+    cloningStarted = true
     await cloneRepo(appId, repoFullName, false, branch)
-  } catch (error) {
-    throw new Error(`Failed to clone repo for app ${appId}: ${(error as Error).message}`)
-  }
-
-  try {
-const container = await docker.createContainer({
-  Image: "shipsmall-sandbox-base:latest",
-  name: `build-${appId}`,
-  Cmd: ["sleep", "infinity"],
-  User: "1000:1000",
-  HostConfig: {
-    // Runtime: "runsc", // enable in prod
-    SecurityOpt: ["no-new-privileges"],
-    CapDrop: ["ALL"],
-   Memory: 1024 * 1024 * 1024,
-    CpuQuota: 100000,
-    PidsLimit: 128,
-    Binds: [`${workspacePath}:/workspace`],
-  },
-  WorkingDir: "/workspace",
-})
-
-    await db.update(apps).set({ buildContainerId: container.id }).where(eq(apps.id, appId))
     await container.start()
     return { containerId: container.id, workspacePath }
   } catch (error) {
-    throw new Error(`Failed to start build container for app ${appId}: ${(error as Error).message}`)
+    if (container) {
+      try {
+        try {
+          await container.remove({ force: true })
+        } catch (removeError: unknown) {
+          if (typeof removeError !== "object" || removeError === null || !("statusCode" in removeError) ||
+            removeError.statusCode !== 404) throw removeError
+        }
+        if (cloningStarted) await fs.rm(workspacePath, { recursive: true, force: true })
+        await db.update(apps).set({ buildContainerId: null })
+          .where(and(eq(apps.id, appId), eq(apps.buildContainerId, container.id)))
+      } catch (cleanupError) {
+        throw new AggregateError([error, cleanupError], "Failed to create and clean up the build; cleanup must be retried")
+      }
+    }
+    throw error
   }
 }
-
-
 
 const DATA_ROOT = process.env.DATA_ROOT ?? "/data"
 
@@ -219,8 +291,9 @@ export async function runContainer(
   const hostDataPath = `${DATA_ROOT}/${appId}`
   const port = await getPort()
 
+  let container: Docker.Container | undefined
   try {
-    const container = await docker.createContainer({
+    container = await docker.createContainer({
       Image: imageTag,
       name: `app-${appId}`,
       Env: [
@@ -247,6 +320,13 @@ export async function runContainer(
     await container.start()
     return { containerId: container.id, port }
   } catch (error) {
+    if (container) {
+      try {
+        await container.remove({ force: true })
+      } catch (cleanupError) {
+        throw new AggregateError([error, cleanupError], "Hosted container failed to start and cleanup failed")
+      }
+    }
     throw new Error(`Failed to run container for app ${appId}: ${(error as Error).message}`)
   }
 }
